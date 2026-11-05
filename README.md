@@ -4,6 +4,10 @@
 
 > **仅供可信人员共享使用。** 所有获得飞书应用授权且用户信息有效的用户均获得同一个 DSH owner 的完整权限。没有独立账户、用户或租户白名单、逐用户审计或撤销机制；请通过飞书应用可用范围限制人员，并限制网络访问。
 
+## 登录效果
+
+![DSH × 飞书登录页，深色模式](https://raw.githubusercontent.com/lloydzhou/dsh-feishu-oauth/4ef45ddaee4dda2f0149a5cc3c35510eab385972/assets/feishu-login.webp)
+
 ## 安装与配置
 
 需要 Node.js >=24.9.0，以及提供 `webServer.readResource()`、`connection.browserPeer` 和原生认证接口的 DSH。清单声明的版本下限为 >=0.2.1-rc.3，但不保证较旧版本具备这些 API；已使用提取的 0.2.2-rc.1 原生模块进行兼容测试，不等同所有版本或真实飞书端到端验证。
