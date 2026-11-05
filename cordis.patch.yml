@@ -1,0 +1,5 @@
+- insert:
+    - id: feishu-oauth
+      name: dsh-feishu-oauth
+      config:
+        enabled: false

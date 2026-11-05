@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "title": "飞书 OAuth 登录",
+    "description": "通过飞书应用授权登录 DSH，保留原生 token 恢复入口"
+  },
+  "settings": {
+    "title": "飞书 OAuth 登录",
+    "intro": "先使用原生 token 登录，再配置飞书。默认关闭不影响配置。应用内有授权的用户都获得同一个 DSH owner 的完整权限；无租户或用户白名单。",
+    "enabled": "启用飞书登录",
+    "appId": "飞书 App ID",
+    "appSecret": "飞书 App Secret",
+    "secretPlaceholder": "留空保留已保存的密钥",
+    "secretHint": "填写 App Secret 原始值，不是环境变量名。首次配置请填写；留空保留已保存的值。原生设置读取会移除密钥，密码框始终空白载入；保存后也会清空。密钥以明文保存在本机 profile 配置中，不是加密保险库。",
+    "callback": "飞书重定向地址（只读）：",
+    "callbackHint": "回调由当前访问地址自动生成；请在飞书后台登记此精确地址。后端使用 DSH 监听器协议，不支持 TLS 终止反向代理。",
+    "httpWarning": "允许局域网 HTTP，但 HTTP 不加密：App Secret、登录凭据和会话流量可能被窃听。仅在可信网络使用；建议使用原生 HTTPS。",
+    "saveHint": "保存会撤销尚未完成的飞书登录；已有 DSH 登录会话不受影响。原生 token 始终可用于恢复。",
+    "readOnly": "本部署的配置为只读。",
+    "saving": "保存中…",
+    "save": "保存配置",
+    "reload": "重新载入配置（放弃草稿）",
+    "saved": "配置已保存。若登录未出现，请确认 App ID、App Secret 和飞书回调地址。继续编辑前请重新载入配置。",
+    "conflict": "保存未被接受，可能有并发修改。草稿已保留；请重新载入配置后重试。",
+    "saveFailed": "保存失败；请检查连接后重试。草稿已保留。",
+    "unavailable": "飞书配置尚不可用，请确认插件已加载且保留启用的插件行。",
+    "invalidEnabled": "开关值无效。",
+    "invalidAppId": "App ID 必须为文本，且不能包含首尾空格。",
+    "invalidAppSecret": "App Secret 必须为文本，且不能包含首尾空格。",
+    "missingAppId": "启用前请填写 App ID，并确保已保存 App Secret。"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "title": "Feishu OAuth login",
+    "description": "Sign in to DSH with Feishu app authorization, with native token recovery"
+  },
+  "settings": {
+    "title": "Feishu OAuth login",
+    "intro": "Sign in with the native token first, then configure Feishu. Configuration is available while OAuth is disabled. All authorized users of the app receive full access as the same DSH owner; there is no tenant or user allowlist.",
+    "enabled": "Enable Feishu login",
+    "appId": "Feishu App ID",
+    "appSecret": "Feishu App Secret",
+    "secretPlaceholder": "Leave blank to keep the saved secret",
+    "secretHint": "Enter the raw App Secret, not an environment variable name. Enter it on first setup; leave it blank to keep the saved value. Native settings reads redact secrets, so this field loads empty and clears after saving. The secret is stored in plaintext in the local profile configuration, not an encrypted vault.",
+    "callback": "Feishu redirect URL (read-only): ",
+    "callbackHint": "The callback is derived from the current address. Register this exact URL in Feishu. The backend uses the DSH listener protocol; TLS-terminating reverse proxies are not supported.",
+    "httpWarning": "LAN HTTP is allowed, but HTTP is not encrypted: App Secret, login credentials, and session traffic may be intercepted. Use only on trusted networks; native HTTPS is recommended.",
+    "saveHint": "Saving revokes pending Feishu logins; existing DSH sessions are unaffected. The native token remains available for recovery.",
+    "readOnly": "This deployment stores settings read-only.",
+    "saving": "Saving…",
+    "save": "Save configuration",
+    "reload": "Reload configuration (discard draft)",
+    "saved": "Configuration saved. If login is unavailable, check the App ID, App Secret, and Feishu redirect URL. Reload configuration before editing again.",
+    "conflict": "Save was not accepted, possibly because of a concurrent change. Your draft is preserved; reload configuration and retry.",
+    "saveFailed": "Save failed. Check your connection and retry. Your draft is preserved.",
+    "unavailable": "Feishu settings are unavailable. Ensure the plugin is loaded and its plugin entry remains enabled.",
+    "invalidEnabled": "The switch value is invalid.",
+    "invalidAppId": "App ID must be text without leading or trailing whitespace.",
+    "invalidAppSecret": "App Secret must be text without leading or trailing whitespace.",
+    "missingAppId": "Enter an App ID and ensure an App Secret is saved before enabling login."
+  }
+}
