@@ -2,13 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import zh from './locale/zh.json' with { type: 'json' };
+import zh from '../locale/zh.json' with { type: 'json' };
 const t = key => { assert.ok(key in zh.settings, `Missing translation: ${key}`); return zh.settings[key]; };
 
 test('built browser bundle registers authenticated form while OAuth is disabled and disposes slot', async () => {
   let plugin, entry, Component, registered = false, request;
   const form = { mutate: async (ops, revision) => { request = { ops, revision }; return false; } };
-  runInNewContext(readFileSync(new URL('./client.js', import.meta.url), 'utf8'), {
+  runInNewContext(readFileSync(new URL('../dist/client.js', import.meta.url), 'utf8'), {
     window: { __ModuleLoader__: { load(module) { assert.equal(module.id, 'dsh-feishu-oauth'); plugin = module.factory(id => { assert.ok(['react', '@deepseek-ai/dsh-client-ui-primitives'].includes(id)); return {}; }); } } },
   });
   const effects = [];
@@ -36,7 +36,7 @@ test('built editor exposes only three settings, derives HTTP callback and preser
     createElement(type, props, ...children) { return { type, props: props ?? {}, children }; },
     useState(initial) { const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial; return [state[i], next => { state[i] = typeof next === 'function' ? next(state[i]) : next; }]; },
   };
-  runInNewContext(readFileSync(new URL('./client.js', import.meta.url), 'utf8'), {
+  runInNewContext(readFileSync(new URL('../dist/client.js', import.meta.url), 'utf8'), {
     window: { location: { origin: 'http://192.0.2.10:3080', protocol: 'http:' }, __ModuleLoader__: { load(module) { plugin = module.factory(id => id === 'react' ? react : { Switch: 'NativeSwitch' }); } } },
   });
   plugin.apply({

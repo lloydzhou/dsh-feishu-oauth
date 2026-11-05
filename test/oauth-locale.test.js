@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { selectLocale } from '../oauth-locale.js';
+import { selectLocale } from '../src/server/oauth-locale.js';
 import { fixture, begin } from './oauth.test.js';
 
 const zh = { 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8' };

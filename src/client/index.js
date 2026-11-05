@@ -1,7 +1,7 @@
 import { createElement as h, useState } from 'react';
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives';
-import en from './locale/en.json' with { type: 'json' };
-import zh from './locale/zh.json' with { type: 'json' };
+import en from '../../locale/en.json' with { type: 'json' };
+import zh from '../../locale/zh.json' with { type: 'json' };
 import { pickSettings, validateSettings, settingsOperations } from './settings-form.js';
 
 export const inject = ['slots', 'locale', 'configForms'];

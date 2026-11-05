@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
-import { mount } from '../oauth.js';
+import { mount } from '../src/server/oauth.js';
 
 const webserverFile = process.env.DSH_NATIVE_WEBSERVER_JS;
 const frontendFile = process.env.DSH_NATIVE_FRONTEND_JS;

@@ -6,7 +6,7 @@
 
 浏览器 bundle 注册到官方 `plugins.bundle.config` 插槽，使用需认证的 `configForms` 命名空间 `feishu-oauth`。保持 Loader 条目 `id: feishu-oauth`、`name: dsh-feishu-oauth` 加载，初始 `config.enabled: false`。关闭 OAuth 不卸载配置卡片；bundle 总开关与 OAuth 开关不同。
 
-[配置入口](<index.js>)只声明 `enabled`、`appId`、`appSecret`，均使用 `.volatile()`；`appSecret` 标记 `.role('secret')`。将 volatile 引用直接传给 `mountSettings(ctx, config)`，以响应已提交的设置变化。
+[配置入口](<src/server/index.js>)只声明 `enabled`、`appId`、`appSecret`，均使用 `.volatile()`；`appSecret` 标记 `.role('secret')`。将 volatile 引用直接传给 `mountSettings(ctx, config)`，以响应已提交的设置变化。
 
 ### 密钥与保存语义
 
@@ -20,13 +20,13 @@
 
 ### 配置生命周期
 
-[设置生命周期模块](<settings.js>)比较配置快照；相关变化立即撤销旧 OAuth 路由并中止待登录操作，等待清理后挂载最新配置，无关 volatile 更新不触发重挂载。关闭 OAuth 或缺少 App ID/Secret 时不挂载路由，这些情况本身不产生激活警告。设置集成捕获到激活或清理异常才记录固定脱敏警告，不转发可能含凭据的异常消息。保存成功不验证飞书凭据或回调登记。
+[设置生命周期模块](<src/server/settings.js>)比较配置快照；相关变化立即撤销旧 OAuth 路由并中止待登录操作，等待清理后挂载最新配置，无关 volatile 更新不触发重挂载。关闭 OAuth 或缺少 App ID/Secret 时不挂载路由，这些情况本身不产生激活警告。设置集成捕获到激活或清理异常才记录固定脱敏警告，不转发可能含凭据的异常消息。保存成功不验证飞书凭据或回调登记。
 
 原生 token 恢复入口保留。移除路由或取消待登录操作不撤销已签发的原生 Cookie；所有获准用户共享完整 owner 权限，没有逐用户会话撤销。
 
 ## 原生认证与根路径
 
-[OAuth 模块](<oauth.js>)依赖原生 `connection.isTrusted()`、`authenticatedUrl()`、`authorizeIndex()`、`browserPeer`，以及 `webServer.register()`、`protocol` 和 **`readResource()` 资源 API**：
+[OAuth 模块](<src/server/oauth.js>)依赖原生 `connection.isTrusted()`、`authenticatedUrl()`、`authorizeIndex()`、`browserPeer`，以及 `webServer.register()`、`protocol` 和 **`readResource()` 资源 API**：
 
 - `/?token=...` 原样委托 `authorizeIndex()`，不替代原生恢复认证。
 - OAuth 成功后，在服务端通过 `authenticatedUrl()` 与 `authorizeIndex()` 获取原生 Cookie，不自行签名、不读取签名密钥。启动 token 仅用于进程内请求，不传给浏览器或飞书。
@@ -46,7 +46,7 @@ npm run check
 npm test
 ```
 
-[包清单](<package.json>)固定 esbuild 版本，依赖由[锁文件](<package-lock.json>)锁定；不需传入外部 esbuild 路径。[构建脚本](<build-client.mjs>)生成[浏览器 bundle](<client.js>)，修改[客户端源码](<client-source.js>)或[表单逻辑](<settings-form.js>)后应重新构建并提交相应产物。此流程不执行 npm 发布。
+[包清单](<package.json>)固定 esbuild 版本，依赖由[锁文件](<package-lock.json>)锁定；不需传入外部 esbuild 路径。[构建脚本](<scripts/build-client.mjs>)生成[浏览器 bundle](<dist/client.js>)，修改[客户端源码](<src/client/index.js>)或[表单逻辑](<src/client/settings-form.js>)后应重新构建并提交相应产物。此流程不执行 npm 发布。
 
 `./client` 导出浏览器 bundle，`dsh.client.platform` 为 `web`，注入 `@deepseek-ai/dsh-client-locale`、`@deepseek-ai/dsh-client-ui-settings` 和 `@deepseek-ai/dsh-client-ui-plugin-manager`。卡片使用原生 locale 与 Switch，中英文包元数据通过 `./locale/*.json` 导出。
 
@@ -59,7 +59,7 @@ DSH_NATIVE_FRONTEND_JS="$EXTRACTED_FRONTEND_JS" \
 node --test test/root-native.test.js
 DSH_INSTALLED_SETTINGS_CLIENT="$EXTRACTED_SETTINGS_CLIENT" \
 DSH_INSTALLED_SETTINGS_SERVER="$EXTRACTED_SETTINGS_SERVER" \
-node --test settings.test.js settings-browser.test.js
+node --test test/settings.test.js test/settings-browser.test.js
 ```
 
 运行前将 `EXTRACTED_*` 变量设为对应提取模块文件；未提供输入的可选测试会跳过。认证测试在 VM 中使用随机密钥验证原生实现，不读取真实凭据。设置测试使用内存 fixture 执行提取的原生脱敏、mutation 和官方 `ConfigFormController`；构建产物测试覆盖插槽注册、三字段表单、回调显示、Secret 草稿、revision 保存与释放。这些不是实际浏览器或真实飞书登录测试。

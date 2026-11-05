@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { renderLoginPage } from '../login-page.js';
+import { renderLoginPage } from '../src/server/login-page.js';
 
 test('login presentation escapes copy and constrains the HTML language', () => {
   const fields = ['loginTitle', 'signIn', 'subtitle', 'recoveryTitle', 'recovery', 'accessNote', 'feishuName'];

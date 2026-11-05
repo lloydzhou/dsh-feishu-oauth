@@ -60,7 +60,21 @@ npm ci
 npm run build:client
 npm run check
 npm test
+npm pack --dry-run --ignore-scripts
 ```
+
+### 目录结构
+
+```text
+src/server/   插件入口、OAuth、登录页面及设置生命周期
+src/client/   配置卡片与表单逻辑源码
+dist/client.js 浏览器 bundle（生成并提交）
+scripts/      客户端构建脚本
+test/         单元测试及可选的原生模块兼容测试
+locale/       对外导出的中英文 JSON
+```
+
+服务端直接运行 ESM 源码；[客户端入口](<src/client/index.js>)由[构建脚本](<scripts/build-client.mjs>)打包到[浏览器产物](<dist/client.js>)。npm 包仅包含服务端、浏览器产物、语言 JSON、DSH patch 和说明文档，不包含客户端源码、构建脚本或测试。公开导出保持为 `.`、`./client`、`./locale/*.json` 和 `./package.json`；CI 重建后检查浏览器产物无差异。
 
 esbuild 固定版本并由锁文件锁定依赖。原生模块兼容测试、设置保存语义和资源 API 要求见[贡献与设置集成参考](<SETTINGS-INTEGRATION.md>)。模拟及提取模块测试不等于真实浏览器或飞书授权往返验收；升级 DSH 后应重新验证。安全问题请按[安全说明](<SECURITY.md>)私密报告，勿在公开 issue 中提交凭据。
 

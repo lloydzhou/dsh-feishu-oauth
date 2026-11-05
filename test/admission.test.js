@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mount } from '../oauth.js';
+import { mount } from '../src/server/oauth.js';
 
 // Provider requests are explicitly settled; no network, timer, or shared fixture
 // module is needed to observe admission while all sixteen slots remain occupied.

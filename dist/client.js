@@ -17,13 +17,13 @@ var __copyProps = (to, from, except, desc) => {
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// client-source.js
-var client_source_exports = {};
-__export(client_source_exports, {
+// src/client/index.js
+var index_exports = {};
+__export(index_exports, {
   apply: () => apply,
   inject: () => inject
 });
-module.exports = __toCommonJS(client_source_exports);
+module.exports = __toCommonJS(index_exports);
 var import_react = require("react");
 var import_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 
@@ -93,7 +93,7 @@ var zh_default = {
   }
 };
 
-// settings-form.js
+// src/client/settings-form.js
 var fields = ["enabled", "appId", "appSecret"];
 function pickSettings(value) {
   return { enabled: value.enabled, appId: value.appId, appSecret: "" };
@@ -109,7 +109,7 @@ function settingsOperations(value) {
   return fields.filter((key) => key !== "appSecret" || value.appSecret !== "").map((key) => ({ op: "set", path: [key], value: value[key] }));
 }
 
-// client-source.js
+// src/client/index.js
 var inject = ["slots", "locale", "configForms"];
 var LOCALE = "settings.feishuOAuth";
 var hint = { fontSize: 12, opacity: 0.75, margin: "6px 0" };

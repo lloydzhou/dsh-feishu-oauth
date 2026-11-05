@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mount, resolve, nativeCookie } from '../oauth.js';
+import { mount, resolve, nativeCookie } from '../src/server/oauth.js';
 
 export const config = { enabled: true, appId: 'app', appSecret: 'PRIVATE_APP_SECRET' };
 const publicUrl = 'https://dsh.example/';

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { nativeCookie, mount } from '../oauth.js';
+import { nativeCookie, mount } from '../src/server/oauth.js';
 
 // Optional, read-only verification of the actual extracted implementation, not a copied signer.
 const file = process.env.DSH_NATIVE_CONNECTION_JS;

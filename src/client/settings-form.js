@@ -1,4 +1,4 @@
-import zh from './locale/zh.json' with { type: 'json' };
+import zh from '../../locale/zh.json' with { type: 'json' };
 
 /** The only editable plugin configuration fields. */
 export const fields = ['enabled', 'appId', 'appSecret'];

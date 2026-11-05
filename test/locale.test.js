@@ -2,9 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import en from './locale/en.json' with { type: 'json' };
-import zh from './locale/zh.json' with { type: 'json' };
-import { validateSettings } from './settings-form.js';
+import en from '../locale/en.json' with { type: 'json' };
+import zh from '../locale/zh.json' with { type: 'json' };
+import { validateSettings } from '../src/client/settings-form.js';
 
 test('English and Chinese metadata and settings have matching nonempty language keys', () => {
   for (const section of ['meta', 'settings']) {
@@ -18,7 +18,7 @@ test('English and Chinese metadata and settings have matching nonempty language 
 test('native locale registration supplies both languages, scopes the slot, and disposes', () => {
   let plugin, dictionary, entry, active = false;
   const effects = [];
-  runInNewContext(readFileSync(new URL('./client.js', import.meta.url), 'utf8'), {
+  runInNewContext(readFileSync(new URL('../dist/client.js', import.meta.url), 'utf8'), {
     window: { __ModuleLoader__: { load: module => { plugin = module.factory(() => ({})); } } },
   });
   assert.deepEqual(Array.from(plugin.inject), ['slots', 'locale', 'configForms']);

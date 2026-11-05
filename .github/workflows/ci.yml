@@ -13,7 +13,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:client
-      - run: git diff --exit-code -- client.js
+      - run: git diff --exit-code -- dist/client.js
       - run: npm run check
       - run: npm test
       - run: npm pack --dry-run --ignore-scripts

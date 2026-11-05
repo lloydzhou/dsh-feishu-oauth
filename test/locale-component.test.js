@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
-import en from './locale/en.json' with { type: 'json' };
-import zh from './locale/zh.json' with { type: 'json' };
+import en from '../locale/en.json' with { type: 'json' };
+import zh from '../locale/zh.json' with { type: 'json' };
 
 const dependencyRoot = process.env.DSH_COMPONENT_DEPS;
 const primitivesPath = process.env.DSH_INSTALLED_PRIMITIVES_CLIENT;
@@ -26,7 +26,7 @@ test('real React editor localizes live state and saves native switch clicks atom
     });
     load(primitivesPath, require);
     assert.equal(typeof primitives.Switch, 'function');
-    load(new URL('./client.js', import.meta.url), id => id === '@deepseek-ai/dsh-client-ui-primitives' ? primitives : require(id));
+    load(new URL('../dist/client.js', import.meta.url), id => id === '@deepseek-ai/dsh-client-ui-primitives' ? primitives : require(id));
     const saves = [];
     let accept = false;
     const form = { mutate: async (ops, revision) => { saves.push(JSON.parse(JSON.stringify({ ops, revision }))); return accept; } };

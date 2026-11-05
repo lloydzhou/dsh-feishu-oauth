@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mountSettings } from './settings.js';
-import { fields, pickSettings, validateSettings, settingsOperations } from './settings-form.js';
+import { mountSettings } from '../src/server/settings.js';
+import { fields, pickSettings, validateSettings, settingsOperations } from '../src/client/settings-form.js';
 
 const valid = { enabled: false, appId: '', appSecret: '' };
 test('disabled OAuth remains configurable without an application or secret', () => {
