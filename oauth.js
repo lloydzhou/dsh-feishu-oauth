@@ -1,5 +1,5 @@
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
-import { oauthLocale } from './oauth-locale.js';
+import { oauthLocale, loginCsp } from './oauth-locale.js';
 
 const START = '/auth/feishu/start';
 const CALLBACK = '/auth/feishu/callback';
@@ -112,7 +112,7 @@ export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.no
         res.end(body);
         return;
       }
-      return reply(res, 200, text.loginPage, { 'content-type': 'text/html; charset=utf-8' });
+      return reply(res, 200, text.loginPage, { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': loginCsp });
     }
     if (path === START) {
       if (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && req.headers.origin !== url.origin)) return reply(res, 403, text.forbidden);

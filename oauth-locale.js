@@ -1,3 +1,9 @@
+import { createHash } from 'node:crypto';
+import { loginStyles, renderLoginPage } from './login-page.js';
+
+/** Only the fixed login stylesheet is authorized; scripts and external resources stay blocked. */
+export const loginCsp = `default-src 'none'; style-src 'sha256-${createHash('sha256').update(loginStyles).digest('base64')}'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`;
+
 /** Select a supported language from browser preferences, with English as the final fallback. */
 export function selectLocale(acceptLanguage) {
   if (typeof acceptLanguage !== 'string') return 'en';
@@ -18,9 +24,11 @@ export function selectLocale(acceptLanguage) {
 
 const messages = {
   en: {
-    loginTitle: 'DSH login', signIn: 'Sign in with Feishu',
-    recovery: 'Recovery: reopen the native token URL printed by dsh web. Feishu access grants full owner privileges.',
-    signedIn: 'Signed in', continue: 'Continue to DeepSeek Harness',
+    loginTitle: 'Sign in to DeepSeek Harness', signIn: 'Sign in with Feishu',
+    subtitle: 'Connect with Feishu to access your workspace.', feishuName: 'Feishu',
+    recoveryTitle: 'Have a Token link?',
+    recovery: 'You can also sign in directly with the native Token URL printed by dsh web. Open the complete link in your browser.',
+    accessNote: 'Feishu access grants full owner privileges. Only authorize people you trust.',
     methodNotAllowed: 'Method not allowed', forbidden: 'Forbidden', unexpectedParameters: 'Unexpected parameters',
     busy: 'Login busy; retry later', expired: 'Invalid or expired login; start again',
     declined: 'Feishu login declined; start again', invalidResponse: 'Invalid login response; start again',
@@ -28,9 +36,11 @@ const messages = {
     failed: 'Login could not be completed; start again or use native recovery', invalidRequest: 'Invalid request',
   },
   zh: {
-    loginTitle: 'DSH 登录', signIn: '使用飞书登录',
-    recovery: '恢复访问：重新打开 dsh web 输出的原生令牌链接。通过飞书登录后将获得完整的所有者权限。',
-    signedIn: '登录成功', continue: '继续前往 DeepSeek Harness',
+    loginTitle: '登录 DeepSeek Harness', signIn: '使用飞书授权登录',
+    subtitle: '连接你的飞书账号，进入工作空间。', feishuName: '飞书',
+    recoveryTitle: '也可以使用 Token 直接登录',
+    recovery: '在浏览器中打开 dsh web 输出的完整 Token 链接，即可使用原生方式登录，无需飞书授权。',
+    accessNote: '通过飞书登录后将获得完整的所有者权限，请仅向可信人员开放。',
     methodNotAllowed: '不支持此请求方法', forbidden: '禁止访问', unexpectedParameters: '请求包含非预期参数',
     busy: '登录请求繁忙，请稍后重试', expired: '登录无效或已过期，请重新登录',
     declined: '飞书登录已被拒绝，请重新登录', invalidResponse: '登录响应无效，请重新登录',
@@ -46,7 +56,7 @@ export function oauthLocale(acceptLanguage) {
   const head = `<!doctype html><html lang="${language}"><meta charset="utf-8">`;
   return {
     ...text,
-    loginPage: `${head}<title>${text.loginTitle}</title><h1>DeepSeek Harness</h1><p><a href="/auth/feishu/start">${text.signIn}</a></p><p>${text.recovery}</p></html>`,
+    loginPage: renderLoginPage(language, text),
     successPage: `${head}<meta http-equiv="refresh" content="0;url=/"><title>DeepSeek Harness</title></html>`,
   };
 }

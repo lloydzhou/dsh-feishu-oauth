@@ -10,11 +10,11 @@
   "type": "module",
   "main": "./index.js",
   "exports": { ".": "./index.js", "./client": "./client.js", "./locale/*.json": "./locale/*.json", "./package.json": "./package.json" },
-  "files": ["index.js", "oauth.js", "oauth-locale.js", "settings.js", "client.js", "locale", "cordis.patch.yml", "README.md", "LICENSE", "SECURITY.md", "SETTINGS-INTEGRATION.md"],
+  "files": ["index.js", "oauth.js", "oauth-locale.js", "login-page.js", "settings.js", "client.js", "locale", "cordis.patch.yml", "README.md", "LICENSE", "SECURITY.md", "SETTINGS-INTEGRATION.md", "ASSET-ATTRIBUTION.md"],
   "engines": { "node": ">=24.9.0", "dsh": ">=0.2.1-rc.3" },
   "scripts": {
     "test": "node --test",
-    "check": "node --check index.js && node --check oauth.js && node --check oauth-locale.js && node --check settings.js && node --check client.js && node --check client-source.js && node --check settings-form.js && node --check build-client.mjs",
+    "check": "node --check index.js && node --check oauth.js && node --check oauth-locale.js && node --check login-page.js && node --check settings.js && node --check client.js && node --check client-source.js && node --check settings-form.js && node --check build-client.mjs",
     "build:client": "node build-client.mjs",
     "prepack": "npm run build:client && npm run check && npm test"
   },

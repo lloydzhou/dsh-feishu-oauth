@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { selectLocale } from '../oauth-locale.js';
 import { fixture, begin } from './oauth.test.js';
 
@@ -26,10 +27,10 @@ test('login pages use browser language and only safe static HTML language tags',
   const f = fixture(); t.after(() => f.close());
   for (const [header, language, signIn, recovery] of [
     [undefined, 'en', 'Sign in with Feishu', 'Feishu access grants full owner privileges.'],
-    [zh['accept-language'], 'zh', '使用飞书登录', '完整的所有者权限'],
-    ['en;q=0.9,zh;q=0.1', 'en', 'Sign in with Feishu', 'Recovery:'],
-    ['zh;q=0,en;q=1', 'en', 'Sign in with Feishu', 'Recovery:'],
-    ['zh\"><script>PRIVATE_INJECTED</script>', 'en', 'Sign in with Feishu', 'Recovery:'],
+    [zh['accept-language'], 'zh', '使用飞书授权登录', '完整的所有者权限'],
+    ['en;q=0.9,zh;q=0.1', 'en', 'Sign in with Feishu', 'Have a Token link?'],
+    ['zh;q=0,en;q=1', 'en', 'Sign in with Feishu', 'Have a Token link?'],
+    ['zh\"><script>PRIVATE_INJECTED</script>', 'en', 'Sign in with Feishu', 'Have a Token link?'],
   ]) {
     const res = await f.request('/', { 'accept-language': header });
     assert.equal(res.status, 200);
@@ -38,7 +39,15 @@ test('login pages use browser language and only safe static HTML language tags',
     assert.match(res.body, /href="\/auth\/feishu\/start"/);
     assert.match(res.headers['content-type'], /text\/html/);
     assert.equal(res.headers['cache-control'], 'no-store');
-    assert.doesNotMatch(res.body, /PRIVATE_|<script>/);
+    const styles = [...res.body.matchAll(/<style>([\s\S]*?)<\/style>/g)];
+    assert.equal(styles.length, 1);
+    const hash = createHash('sha256').update(styles[0][1]).digest('base64');
+    assert.equal(res.headers['content-security-policy'], `default-src 'none'; style-src 'sha256-${hash}'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`);
+    assert.match(res.body, /name="viewport"/);
+    assert.match(res.body, /prefers-color-scheme:\s*dark/);
+    assert.match(res.body, /:focus-visible/);
+    assert.match(res.body, /Token/);
+    assert.doesNotMatch(res.body, /PRIVATE_|<script|<img|<link|\sstyle=|\sonclick=/);
   }
 });
 
