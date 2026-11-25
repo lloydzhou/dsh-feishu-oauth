@@ -1,5 +1,6 @@
 import { randomBytes, createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { oauthLocale, loginCsp } from './oauth-locale.js';
+import { createRootEntry } from './root-entry.js';
 
 const LOGIN = '/auth/feishu/login';
 const START = '/auth/feishu/start';
@@ -254,14 +255,31 @@ export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.no
     const bare = ctx.reflect?.get?.('connection', false) ?? ctx.connection;
     const peer = bare.createPeer({ principal: { kind: 'owner' } });
     const authenticate = request => {
-      const requestUrl = requestOrigin(ctx, request, ctx.webServer.protocol);
+      // Callers pass node header objects (webserver/authorize) or Fetch
+      // Headers (remote-connection's root gateway); read both shapes.
+      const raw = request?.headers;
+      const read = name => {
+        if (!raw) return undefined;
+        if (typeof raw.get === 'function') return raw.get(name) ?? undefined;
+        const value = raw[name];
+        return Array.isArray(value) ? value.join('; ') : value;
+      };
+      const headers = { host: read('host'), cookie: read('cookie') };
+      const requestUrl = requestOrigin(ctx, { headers }, ctx.webServer.protocol);
       if (!requestUrl) return undefined;
-      const session = sessions.verify(cookieValue(request.headers?.cookie, cookieNames(new URL(c.publicUrl ?? requestUrl.origin)).session), now());
+      const session = sessions.verify(cookieValue(headers.cookie, cookieNames(new URL(c.publicUrl ?? requestUrl.origin)).session), now());
       return session ? peer : undefined;
     };
     registry.register({ authenticate });
+    // Cooperate with whoever owns "/" instead of competing for the route: the
+    // official sign-in page gains a Feishu card, and a bare 401 on "/" becomes
+    // the Feishu login page. Registration order never matters.
+    if (typeof ctx.on === 'function') ctx.effect(() => ctx.on('webserver/request', createRootEntry()), 'feishu-oauth: root entry');
   }
-  const routePaths = config.rootPage === true ? ['/', LOGIN, START, CALLBACK] : [LOGIN, START, CALLBACK];
+  // Root wall: automatic on legacy hosts (no authentication registry, hence no
+  // remote-connection gateway); explicit opt-in/opt-out via rootPage.
+  const rootWall = config.rootPage === true || (config.rootPage !== false && !providerMode);
+  const routePaths = rootWall ? ['/', LOGIN, START, CALLBACK] : [LOGIN, START, CALLBACK];
   for (const path of routePaths) {
     const register = () => ctx.webServer.register({
       kind: 'exact', path, auth: 'anonymous',

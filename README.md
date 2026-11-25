@@ -10,7 +10,7 @@
 
 ## 安装与配置
 
-需要 Node.js >=24.9.0。在提供 `connection.authentication.register()` 的 DSH（0.2.3-alpha.2+）上使用 provider 模式；更旧的版本（>=0.2.1-rc.3）回退到旧的原生 Cookie 交换（`authorizeIndex`），且需要 `rootPage: true` 才提供根路径登录墙。不等同所有版本或真实飞书端到端验证。
+需要 Node.js >=24.9.0。在提供 `connection.authentication.register()` 的 DSH（0.2.3-alpha.2+）上使用 provider 模式；更旧的版本（>=0.2.1-rc.3）回退到旧的原生 Cookie 交换（`authorizeIndex`），并自动在根路径提供飞书登录墙。不等同所有版本或真实飞书端到端验证。
 
 ```sh
 git clone https://github.com/lloydzhou/dsh-feishu-oauth.git
@@ -53,14 +53,19 @@ dsh plugin --profile web add .
 
 ## 登录与恢复
 
-### 路由与宿主兼容
+### 路由与宿主兼容（与官方 remote-connection 协作）
 
-| 宿主 | `"/"` 归属 | 飞书登录入口 |
+| 宿主 | `"/"` 归属 | 首页看到什么 |
 | --- | --- | --- |
-| dsh 0.2.3-alpha.2+（有 remote-connection 官方网关） | 官方网关（扫码/配对/Token 登录照常） | `/auth/feishu/login` |
-| 更旧版本（无 remote-connection） | 本插件（需 `rootPage: true`） | `/` 或 `/auth/feishu/login` |
+| dsh 0.2.3-alpha.2+，启用 remote-connection | 官方网关 | 官方登录页：**飞书登录卡片** + Token 输入 + 设备配对，三种方式并列 |
+| dsh 0.2.3-alpha.2+，未启用 remote-connection | 无人注册（宿主返回 401） | 本插件的飞书登录页 |
+| 更旧版本（无官方网关） | 本插件自动注册 | 本插件的飞书登录页（含 Token 恢复提示） |
 
-默认**不占用** `/`：dsh 0.2.3-alpha.2 引入的 remote-connection 官方网关注册了同一 exact 路由，重复注册会让官方组件激活失败。插件注册 `/auth/feishu/login`（登录卡片页）、`/auth/feishu/start` 与 `/auth/feishu/callback`（路径不变，飞书应用的 redirect_uri 配置无需修改）。登录页支持中英文、窄屏及系统深色模式，不加载外部字体、图片或脚本，样式经固定 CSP 哈希授权。登录成功后签发 14 天持久会话 Cookie（HttpOnly/SameSite=Lax，HTTPS 下 Secure），成功页零延迟 meta refresh 返回同源 `/`——官方网关随后的准入请求由本插件的 authentication provider 认可，直接进入主应用。`rootPage: true` 时插件额外注册 `/` 作为登录墙（旧宿主需要；新宿主上若 `/` 已被占用则仅跳过并告警；legacy 宿主上 `/?token=...` 恢复与原生 Cookie admit 委托给宿主）。匿名访问 `/index.html` 可能得到原生 401。API 和 WebSocket 继续使用宿主认证。
+本插件在新宿主上**从不注册 `/`**，因此与 remote-connection 不存在路由冲突，加载顺序也无关紧要。首页入口通过 `webserver/request` 中间件实现：只处理匿名 `GET /` 的 401 响应——官方登录页（HTML）在 `.methods` 中**追加**飞书卡片，官方的 Token 表单、配对按钮、脚本、状态码和 CSP 均原样保留；没有任何登录页的裸 401 则替换为本插件登录页。已登录的 200 响应、`/?token=...`、`?login=qr` 扫码流程及其他路径一律透传。无法识别官方页面结构时原样透传，不会破坏官方页面。
+
+登录成功后签发 14 天会话 Cookie（HMAC 签名，HttpOnly/SameSite=Lax，HTTPS 下 Secure），并通过 `connection.authentication.register()` 注册 provider——与官方 Token / 配对 provider 同一准入链：成功页回到 `/` 时官方网关直接放行进入主应用，`/api` 与 WebSocket 同样认可该会话。`/auth/feishu/login` 始终可直接访问；`/auth/feishu/start`、`/auth/feishu/callback` 路径不变，飞书 redirect_uri 无需修改。
+
+`rootPage` 留空即自动；`true` 强制注册 `/`（与官方网关冲突时仅跳过并告警），`false` 关闭根路径登录墙。
 
 OAuth 关闭或应用凭据缺失时不注册登录路由。设置集成捕获到激活或清理异常时记录固定脱敏警告；并非所有缺失或错误配置都会产生警告。保存成功不证明飞书凭据或回调登记有效。相关配置变更会撤下 OAuth 路由、取消待登录请求，清理后重新挂载；关闭或卸载恢复原生入口。
 

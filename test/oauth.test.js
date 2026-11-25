@@ -30,7 +30,7 @@ export function legacyConnection(calls = []) {
     browserPeer: { legacy: true },
   };
 }
-export function fixture(overrides = {}, dependencies = {}, connection, presetRoutes = []) {
+export function fixture(overrides = {}, dependencies = {}, connection, presetRoutes = [], prepare) {
   const routes = new Map(presetRoutes), disposers = [], calls = [];
   const native = providerConnection();
   const ctx = { webServer: { protocol: 'https:', async readResource(request, peer) { assert.equal(request.url, 'https://dsh.example/index.html'); assert.equal(peer, ctx.connection.browserPeer); return new Response('<html>native app</html>', { headers: { 'content-type': 'text/html' } }); }, register(route) { if (routes.has(route.path)) throw Error('duplicate'); routes.set(route.path, route); return () => routes.delete(route.path); } },
@@ -38,6 +38,7 @@ export function fixture(overrides = {}, dependencies = {}, connection, presetRou
   };
   const requests = [];
   const fetchImpl = async (url, opts) => { requests.push({ url, opts }); return Response.json(url.includes('/token') ? { code: 0, access_token: 'PRIVATE_ACCESS_TOKEN', token_type: 'Bearer' } : { code: 0, data: { tenant_key: 'tenant', open_id: 'owner' } }); };
+  prepare?.(ctx);
   mount(ctx, { ...config, ...overrides }, { stateTtlSeconds: 30, maxPendingStates: 2, fetchTimeoutMs: 100, fetchImpl, ...dependencies });
   return { routes, requests, calls, providers: connection ? undefined : native.providers, peer: native.peer, ctx,
     async request(url, headers = {}, method = 'GET') {
@@ -125,6 +126,9 @@ test('the registered provider admits the Feishu session and rejects everything e
   assert.equal(f.providers.length, 1);
   assert.equal(typeof f.providers[0].authenticate, 'function');
   assert.equal(f.providers[0].authenticate({ headers: { host: 'dsh.example', cookie: sessionPair } }), f.peer);
+  // remote-connection's root gateway passes Fetch Headers, not node header objects.
+  assert.equal(f.providers[0].authenticate({ headers: new Headers({ host: 'dsh.example', cookie: sessionPair }) }), f.peer);
+  assert.equal(f.providers[0].authenticate({ headers: new Headers({ host: 'dsh.example' }) }), undefined);
   assert.equal(f.providers[0].authenticate({ headers: { host: 'dsh.example' } }), undefined);
   assert.equal(f.providers[0].authenticate({ headers: { host: 'evil.example', cookie: sessionPair } }), undefined);
   assert.equal(f.providers[0].authenticate({ headers: { host: 'dsh.example', cookie: sessionPair + 'x' } }), undefined);
