@@ -11,8 +11,11 @@
     "appSecret": "飞书 App Secret",
     "secretPlaceholder": "留空保留已保存的密钥",
     "secretHint": "填写 App Secret 原始值，不是环境变量名。首次配置请填写；留空保留已保存的值。原生设置读取会移除密钥，密码框始终空白载入；保存后也会清空。密钥以明文保存在本机 profile 配置中，不是加密保险库。",
+    "publicUrl": "公开访问基址（可选）",
+    "publicUrlPlaceholder": "https://dsh.example",
+    "publicUrlHint": "可留空，沿用当前访问地址。填写后，飞书重定向和原生 Cookie 换取均使用该基址。只接受 http(s) 根地址；不支持路径、凭据、查询串或片段。此配置不会把该 Host 加入 DSH 信任列表。",
     "callback": "飞书重定向地址（只读）：",
-    "callbackHint": "回调由当前访问地址自动生成；请在飞书后台登记此精确地址。后端使用 DSH 监听器协议，不支持 TLS 终止反向代理。",
+    "callbackHint": "有配置时由公开访问基址生成，留空时由当前访问地址生成；请在飞书后台登记此精确地址。登录路由固定在根路径，不支持子路径部署。DSH 监听器信任与 TLS 行为不变。",
     "httpWarning": "允许局域网 HTTP，但 HTTP 不加密：App Secret、登录凭据和会话流量可能被窃听。仅在可信网络使用；建议使用原生 HTTPS。",
     "saveHint": "保存会撤销尚未完成的飞书登录；已有 DSH 登录会话不受影响。原生 token 始终可用于恢复。",
     "readOnly": "本部署的配置为只读。",
@@ -26,6 +29,8 @@
     "invalidEnabled": "开关值无效。",
     "invalidAppId": "App ID 必须为文本，且不能包含首尾空格。",
     "invalidAppSecret": "App Secret 必须为文本，且不能包含首尾空格。",
+    "invalidPublicUrl": "公开访问基址必须是有效的 http(s) 地址，且不能包含凭据、查询串或片段。",
+    "publicUrlPath": "公开访问基址不能包含路径；插件仅在根路径提供 /auth/feishu/* 路由。",
     "missingAppId": "启用前请填写 App ID，并确保已保存 App Secret。"
   }
 }

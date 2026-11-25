@@ -22,6 +22,7 @@ test('real React editor localizes live state and saves native switch clicks atom
     const { createRoot } = require('react-dom/client');
     let primitives, plugin, Card, entry;
     const load = (file, resolve) => runInNewContext(readFileSync(file, 'utf8'), {
+      URL,
       window: { location: dom.window.location, __ModuleLoader__: { load(module) { const exports = module.factory(resolve); if (module.id === 'dsh-feishu-oauth') plugin = exports; else primitives = exports; } } },
     });
     load(primitivesPath, require);
@@ -36,7 +37,7 @@ test('real React editor localizes live state and saves native switch clicks atom
       slots: { inject: (_slot, setup) => setup(), register(meta, component) { entry = meta; Card = component; return () => {}; } },
     });
     let language = en;
-    let view = { status: 'ready', writable: true, revision: 12, value: { enabled: false, appId: 'app', appSecret: 'never-show' } };
+    let view = { status: 'ready', writable: true, revision: 12, value: { enabled: false, appId: 'app', appSecret: 'never-show', publicUrl: '' } };
     const render = () => root.render(React.createElement(Card, { ...entry.inject(), t: key => { assert.ok(key in language.settings, key); return language.settings[key]; }, useConfig: select => select(view) }));
     const container = dom.window.document.getElementById('root');
     root = createRoot(container);
@@ -50,7 +51,7 @@ test('real React editor localizes live state and saves native switch clicks atom
     await React.act(() => toggle().click());
     assert.equal(toggle().getAttribute('aria-checked'), 'true');
     await React.act(() => button('submit').click());
-    assert.deepEqual(saves[0], { revision: 12, ops: [{ op: 'set', path: ['enabled'], value: true }, { op: 'set', path: ['appId'], value: 'app' }] });
+    assert.deepEqual(saves[0], { revision: 12, ops: [{ op: 'set', path: ['enabled'], value: true }, { op: 'set', path: ['appId'], value: 'app' }, { op: 'set', path: ['publicUrl'], value: '' }] });
     assert.ok(container.textContent.includes(en.settings.conflict));
     language = zh;
     await React.act(render);

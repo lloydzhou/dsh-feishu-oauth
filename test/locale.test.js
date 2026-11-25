@@ -36,11 +36,13 @@ test('native locale registration supplies both languages, scopes the slot, and d
 });
 
 test('every validation branch uses a translatable key in each language', () => {
-  const valid = { enabled: false, appId: '', appSecret: '' };
+  const valid = { enabled: false, appId: '', appSecret: '', publicUrl: '' };
   const cases = [
     [{ enabled: 'yes' }, 'invalidEnabled'],
     [{ appId: ' app' }, 'invalidAppId'],
     [{ appSecret: ' secret' }, 'invalidAppSecret'],
+    [{ publicUrl: 'https://dsh.example/dsh' }, 'publicUrlPath'],
+    [{ publicUrl: 'https://user@dsh.example' }, 'invalidPublicUrl'],
     [{ enabled: true }, 'missingAppId'],
   ];
   for (const dictionary of [en.settings, zh.settings]) {

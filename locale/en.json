@@ -11,8 +11,11 @@
     "appSecret": "Feishu App Secret",
     "secretPlaceholder": "Leave blank to keep the saved secret",
     "secretHint": "Enter the raw App Secret, not an environment variable name. Enter it on first setup; leave it blank to keep the saved value. Native settings reads redact secrets, so this field loads empty and clears after saving. The secret is stored in plaintext in the local profile configuration, not an encrypted vault.",
+    "publicUrl": "Public base URL (optional)",
+    "publicUrlPlaceholder": "https://dsh.example",
+    "publicUrlHint": "Leave blank to use the address currently used to open DSH. When set, Feishu redirects and the native cookie exchange use this exact base. Enter only an http(s) origin; paths, credentials, query strings, and fragments are not supported. This does not add the host to DSH trusted hosts.",
     "callback": "Feishu redirect URL (read-only): ",
-    "callbackHint": "The callback is derived from the current address. Register this exact URL in Feishu. The backend uses the DSH listener protocol; TLS-terminating reverse proxies are not supported.",
+    "callbackHint": "Derived from the public base URL when set, otherwise from the current address. Register this exact URL in Feishu. Login routes stay at the root, so a path prefix is not supported. DSH listener trust and TLS behavior are unchanged.",
     "httpWarning": "LAN HTTP is allowed, but HTTP is not encrypted: App Secret, login credentials, and session traffic may be intercepted. Use only on trusted networks; native HTTPS is recommended.",
     "saveHint": "Saving revokes pending Feishu logins; existing DSH sessions are unaffected. The native token remains available for recovery.",
     "readOnly": "This deployment stores settings read-only.",
@@ -26,6 +29,8 @@
     "invalidEnabled": "The switch value is invalid.",
     "invalidAppId": "App ID must be text without leading or trailing whitespace.",
     "invalidAppSecret": "App Secret must be text without leading or trailing whitespace.",
+    "invalidPublicUrl": "Public base URL must be a valid http(s) address without credentials, query string, or fragment.",
+    "publicUrlPath": "Public base URL must be an origin without a path; this plugin serves /auth/feishu/* from the root.",
     "missingAppId": "Enter an App ID and ensure an App Secret is saved before enabling login."
   }
 }

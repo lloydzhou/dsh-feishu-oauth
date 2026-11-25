@@ -23,7 +23,7 @@ function fixture() {
       res.writeHead(401); res.end(); return false;
     },
   }, effect(setup) { disposers.push(setup()); } };
-  mount(ctx, { enabled: true, appId: 'test-app', appSecret: 'test-secret' }, {
+  mount(ctx, { enabled: true, appId: 'test-app', appSecret: 'test-secret', rootPage: true }, {
     fetchImpl(url, options) {
       providerCalls.push({ url, options });
       if (url.endsWith('/user_info')) return Promise.resolve(Response.json({ code: 0, data: { open_id: 'test-user' } }));

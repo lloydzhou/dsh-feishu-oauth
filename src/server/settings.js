@@ -21,6 +21,11 @@ export function mountSettings(ctx, config, mountRoutes = mount) {
   const start = () => mountRoutes({
     connection: ctx.connection,
     webServer: ctx.webServer,
+    logger: ctx.logger,
+    // The framework reflector resolves connection.authentication without an
+    // inject entry (see oauth.js); without it provider mode is never detected.
+    reflect: ctx.reflect,
+    on: typeof ctx.on === 'function' ? (name, listener) => ctx.on(name, listener) : undefined,
     effect(setup) { const dispose = setup(); if (typeof dispose === 'function') disposers.push(dispose); },
   }, snapshot());
   const failed = () => {
