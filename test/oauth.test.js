@@ -1,28 +1,45 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mount, resolve, nativeCookie } from '../src/server/oauth.js';
+import { mount, resolve } from '../src/server/oauth.js';
 
 export const config = { enabled: true, appId: 'app', appSecret: 'PRIVATE_APP_SECRET' };
 const publicUrl = 'https://dsh.example/';
+const PEER = { principal: { kind: 'owner' } };
+/** Provider-mode connection: the host authentication registry (dsh 0.2.3-alpha.2+). */
+export function providerConnection() {
+  const providers = [];
+  return { providers, peer: PEER,
+    isTrustedRequest(request) { return ['dsh.example', 'localhost:3080', '192.0.2.10:3080'].includes(request.headers?.host); },
+    authentication: { register(provider) { providers.push(provider); } },
+    createPeer(options) { assert.deepEqual(options, { principal: { kind: 'owner' } }); return PEER; },
+    browserPeer: PEER,
+  };
+}
+/** Legacy connection (pre-0.2.3): authorizeIndex / authenticatedUrl live on the connection service. */
+export function legacyConnection(calls = []) {
+  return {
+    isTrusted(req) { return ['dsh.example', '192.0.2.10:3080', 'localhost:3080'].includes(req.headers.host); },
+    authenticatedUrl(base) { return `${base}?token=PRIVATE_LAUNCH_TOKEN`; },
+    authorizeIndex(req, res) {
+      calls.push(req);
+      if (req.url.includes('token=PRIVATE_LAUNCH_TOKEN')) { res.writeHead(303, { 'set-cookie': 'dsh-auth-test=signed; HttpOnly; SameSite=Strict; Secure', location: './' }); res.end(); return false; }
+      if (req.headers.cookie?.includes('dsh-auth-test=signed')) return true;
+      res.writeHead(401); res.end(); return false;
+    },
+    browserPeer: { legacy: true },
+  };
+}
 export function fixture(overrides = {}, dependencies = {}, connection, presetRoutes = []) {
   const routes = new Map(presetRoutes), disposers = [], calls = [];
+  const native = providerConnection();
   const ctx = { webServer: { protocol: 'https:', async readResource(request, peer) { assert.equal(request.url, 'https://dsh.example/index.html'); assert.equal(peer, ctx.connection.browserPeer); return new Response('<html>native app</html>', { headers: { 'content-type': 'text/html' } }); }, register(route) { if (routes.has(route.path)) throw Error('duplicate'); routes.set(route.path, route); return () => routes.delete(route.path); } },
-    connection: connection ?? {
-      isTrusted(req) { return ['dsh.example', '192.0.2.10:3080', 'localhost:3080'].includes(req.headers.host); },
-      authenticatedUrl(base) { return `${base}?token=PRIVATE_LAUNCH_TOKEN`; },
-      authorizeIndex(req, res) {
-        calls.push(req);
-        if (req.url.includes('token=PRIVATE_LAUNCH_TOKEN')) { res.writeHead(303, { 'set-cookie': 'dsh-auth-test=signed; HttpOnly; SameSite=Strict; Secure', location: './' }); res.end(); return false; }
-        if (req.headers.cookie?.includes('dsh-auth-test=signed')) return true;
-        res.writeHead(401); res.end(); return false;
-      },
-    }, effect(fn) { disposers.push(fn()); },
+    connection: connection ?? native, effect(fn) { disposers.push(fn()); },
   };
   const requests = [];
   const fetchImpl = async (url, opts) => { requests.push({ url, opts }); return Response.json(url.includes('/token') ? { code: 0, access_token: 'PRIVATE_ACCESS_TOKEN', token_type: 'Bearer' } : { code: 0, data: { tenant_key: 'tenant', open_id: 'owner' } }); };
   mount(ctx, { ...config, ...overrides }, { stateTtlSeconds: 30, maxPendingStates: 2, fetchTimeoutMs: 100, fetchImpl, ...dependencies });
-  return { routes, requests, calls, ctx,
+  return { routes, requests, calls, providers: connection ? undefined : native.providers, peer: native.peer, ctx,
     async request(url, headers = {}, method = 'GET') {
       const res = { status: undefined, headers: {}, body: '', writeHead(status, h = {}) { this.status = status; this.headers = h; this.headersSent = true; }, end(body = '') { this.body = body; } };
       await routes.get(new URL(url, publicUrl).pathname).handler({ url, method, headers: { host: 'dsh.example', ...headers } }, res);
@@ -74,6 +91,11 @@ test('PKCE, browser binding, single use and native cookie with no secret disclos
   const success = await f.request(callback(state), { cookie, 'sec-fetch-site': 'cross-site' });
   assert.equal(success.status, 200); assert.match(success.body, /http-equiv="refresh" content="0;url=\/"/);
   assert.equal(success.headers['set-cookie'].length, 2);
+  const sessionFull = success.headers['set-cookie'].find(value => value.includes('-session=') && !value.includes('Max-Age=0'));
+  const sessionPair = sessionFull?.split(';')[0];
+  assert.match(sessionPair, /^dsh-feishu-[A-Za-z0-9_-]+-session=/);
+  assert.match(sessionFull, /Path=\/; Max-Age=1209600; HttpOnly; SameSite=Lax; Secure/);
+  assert.match(success.headers['set-cookie'].find(value => value.includes('Max-Age=0')), /Path=\/auth\/feishu/);
   assert.doesNotMatch(JSON.stringify(success), /PRIVATE_/);
   const payload = JSON.parse(f.requests[0].opts.body);
   assert.equal(f.requests[0].url, 'https://open.feishu.cn/open-apis/authen/v2/oauth/token');
@@ -86,14 +108,27 @@ test('PKCE, browser binding, single use and native cookie with no secret disclos
   assert.equal(f.requests[0].opts.redirect, 'error');
   assert.equal(f.requests[1].opts.headers.authorization, 'Bearer PRIVATE_ACCESS_TOKEN');
   assert.equal((await f.request(callback(state), { cookie })).status, 400);
-  const home = await f.request('/', { cookie: 'dsh-auth-test=signed' });
+  const home = await f.request('/', { cookie: sessionPair });
   assert.equal(home.status, 200);
   assert.equal(home.headers.location, undefined);
   assert.equal(home.body.toString(), '<html>native app</html>');
 });
 test('native recovery works on a different authority without exposing token to OAuth', async () => {
-  const f = fixture({ rootPage: true }); assert.equal((await f.request('/?token=PRIVATE_LAUNCH_TOKEN', { host: 'localhost:3080' })).status, 303);
+  const f = fixture({ rootPage: true }, {}, legacyConnection()); assert.equal((await f.request('/?token=PRIVATE_LAUNCH_TOKEN', { host: 'localhost:3080' })).status, 303);
   assert.match((await f.request('/')).body, /Sign in with Feishu/);
+});
+test('the registered provider admits the Feishu session and rejects everything else', async () => {
+  const f = fixture(); const a = await begin(f);
+  const success = await f.request(callback(a.state), { cookie: a.cookie, 'sec-fetch-site': 'cross-site' });
+  assert.equal(success.status, 200);
+  const sessionPair = success.headers['set-cookie'].find(value => value.includes('-session=') && !value.includes('Max-Age=0'))?.split(';')[0];
+  assert.equal(f.providers.length, 1);
+  assert.equal(typeof f.providers[0].authenticate, 'function');
+  assert.equal(f.providers[0].authenticate({ headers: { host: 'dsh.example', cookie: sessionPair } }), f.peer);
+  assert.equal(f.providers[0].authenticate({ headers: { host: 'dsh.example' } }), undefined);
+  assert.equal(f.providers[0].authenticate({ headers: { host: 'evil.example', cookie: sessionPair } }), undefined);
+  assert.equal(f.providers[0].authenticate({ headers: { host: 'dsh.example', cookie: sessionPair + 'x' } }), undefined);
+  await f.close();
 });
 test('root path stays free by default; the Feishu login page moves to /auth/feishu/login', async () => {
   const f = fixture();
@@ -128,7 +163,8 @@ test('expired state, duplicate parameters and full storage reject', async () => 
 test('denied provider and unauthorized identity never mint native cookies', async () => {
   for (const fetchImpl of [async () => { throw Error('PRIVATE_APP_SECRET'); }, async () => Response.json({ code: 999 }), async url => Response.json(url.includes('/token') ? { code: 0, access_token: 'x', token_type: 'Bearer' } : { code: 0, data: { tenant_key: 'other', open_id: '' } })]) {
     const f = fixture({}, { fetchImpl }); const a = await begin(f); const res = await f.request(callback(a.state), { cookie: a.cookie });
-    assert.ok([403, 502].includes(res.status)); assert.equal(f.calls.length, 0); assert.doesNotMatch(JSON.stringify(res), /PRIVATE_/);
+    assert.ok([403, 502].includes(res.status)); assert.doesNotMatch(JSON.stringify(res), /PRIVATE_/);
+    assert.ok(!JSON.stringify(res.headers['set-cookie']).includes('-session='));
   }
 });
 test('every app-authorized valid identity is admitted without a user or tenant list', async () => {
@@ -136,7 +172,7 @@ test('every app-authorized valid identity is admitted without a user or tenant l
     const f = fixture({}, { fetchImpl: async url => Response.json(url.includes('/token') ? { code: 0, access_token: 'x', token_type: 'Bearer' } : { code: 0, data: { tenant_key: 'another-tenant', open_id } }) });
     const a = await begin(f);
     assert.equal((await f.request(callback(a.state), { cookie: a.cookie })).status, 200);
-    assert.equal(f.calls.length, 1);
+    assert.equal(f.providers.length, 1);
     await f.close();
   }
 });
@@ -150,7 +186,7 @@ test('oversized provider responses and timeout failures remain sanitized', async
     const f = fixture({}, { fetchImpl }); const a = await begin(f);
     // Keep the test runner alive while Node's unref'ed AbortSignal timeout fires.
     const hold = setInterval(() => {}, 1000);
-    try { const res = await f.request(callback(a.state), { cookie: a.cookie }); assert.equal(res.status, 502); assert.equal(f.calls.length, 0); }
+    try { const res = await f.request(callback(a.state), { cookie: a.cookie }); assert.equal(res.status, 502); assert.ok(!JSON.stringify(res.headers['set-cookie']).includes('-session=')); }
     finally { clearInterval(hold); await f.close(); }
   }
 });
@@ -160,9 +196,22 @@ test('disposal aborts an in-flight callback and prevents cookie issuance', async
   const f = fixture({}, { fetchImpl: async (_url, options) => new Promise((_, reject) => { started(); options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true }); }) });
   const a = await begin(f); const pending = f.request(callback(a.state), { cookie: a.cookie });
   await ready; await f.close();
-  assert.equal((await pending).status, 502); assert.equal(f.routes.size, 0); assert.equal(f.calls.length, 0);
+  assert.equal((await pending).status, 502); assert.equal(f.routes.size, 0); assert.ok(!JSON.stringify((await pending).headers?.['set-cookie']).includes('-session='));
 });
-test('adapter rejects unexpected native results instead of forwarding them', () => {
-  assert.throws(() => nativeCookie({ authenticatedUrl: () => 'https://evil/?token=x' }, {}, publicUrl));
-  assert.throws(() => nativeCookie({ authenticatedUrl: () => `${publicUrl}?token=x`, authorizeIndex(req, res) { res.writeHead(303, { location: req.url }); res.end(); return false; } }, {}, publicUrl));
+test('untrusted Host keeps the OAuth handlers fenced', async () => {
+  const f = fixture();
+  assert.equal((await f.request('/auth/feishu/login', { host: 'public.example' })).status, 403);
+  assert.equal((await f.request('/auth/feishu/start', { host: 'public.example' })).status, 403);
+  await f.close();
+});
+test('the session cookie is authority-scoped and survives no tampering', async () => {
+  const f = fixture(); const a = await begin(f);
+  const success = await f.request(callback(a.state), { cookie: a.cookie, 'sec-fetch-site': 'cross-site' });
+  const sessionPair = success.headers['set-cookie'].find(value => value.includes('-session=') && !value.includes('Max-Age=0'))?.split(';')[0];
+  const name = sessionPair.slice(0, sessionPair.indexOf('='));
+  // The provider binds the cookie name to the request authority: a different
+  // Host never sees this session, and tampered values fail the HMAC check.
+  assert.equal(f.providers[0].authenticate({ headers: { host: 'dsh.example:8443', cookie: sessionPair } }), undefined);
+  assert.equal(f.providers[0].authenticate({ headers: { host: 'dsh.example', cookie: name + '=' + 'A'.repeat(20) } }), undefined);
+  await f.close();
 });

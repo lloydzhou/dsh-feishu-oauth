@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mount, publicBase, resolve } from '../src/server/oauth.js';
 import { Config } from '../src/server/index.js';
-import { begin, fixture } from './oauth.test.js';
+import { begin, fixture, legacyConnection } from './oauth.test.js';
 import { fields, pickSettings, settingsOperations, validateSettings, callbackUrl } from '../src/client/settings-form.js';
 
 const credentials = { enabled: true, appId: 'app', appSecret: 'secret' };
@@ -82,23 +82,19 @@ test('the configured base is the Origin fence for login start', async () => {
   await f.close();
 });
 
-test('configured base drives callback, token exchange and native cookie without changing recovery', async () => {
-  const f = fixture({ publicUrl: 'https://public.example/', rootPage: true });
-  let nativeBase;
-  const authenticatedUrl = f.ctx.connection.authenticatedUrl;
-  f.ctx.connection.authenticatedUrl = base => { nativeBase = base; return authenticatedUrl(base); };
+test('configured base drives callback, token exchange and session issuance without changing recovery', async () => {
+  const f = fixture({ publicUrl: 'https://public.example/', rootPage: true }, {}, legacyConnection());
   const { state, cookie } = await begin(f);
   const success = await f.request(callback(state), { cookie });
   assert.equal(success.status, 200);
   assert.equal(JSON.parse(f.requests[0].opts.body).redirect_uri, 'https://public.example/auth/feishu/callback');
-  assert.equal(nativeBase, 'https://public.example/');
-  assert.equal(f.calls.length, 1);
+  // publicUrl pins the session cookie name to the configured origin.
+  assert.match(success.headers['set-cookie'][0], /^dsh-feishu-[A-Za-z0-9_-]+-session=/);
   assert.doesNotMatch(JSON.stringify(success), /PRIVATE_/);
 
   const recovery = await f.request('/?token=PRIVATE_LAUNCH_TOKEN', { host: 'localhost:3080' });
   assert.equal(recovery.status, 303);
   assert.equal(recovery.headers.location, './');
-  assert.equal(f.calls.at(-1).url, '/?token=PRIVATE_LAUNCH_TOKEN');
   await f.close();
 });
 

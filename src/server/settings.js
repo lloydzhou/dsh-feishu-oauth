@@ -21,6 +21,7 @@ export function mountSettings(ctx, config, mountRoutes = mount) {
   const start = () => mountRoutes({
     connection: ctx.connection,
     webServer: ctx.webServer,
+    logger: ctx.logger,
     effect(setup) { const dispose = setup(); if (typeof dispose === 'function') disposers.push(dispose); },
   }, snapshot());
   const failed = () => {

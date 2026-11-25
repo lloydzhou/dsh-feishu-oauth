@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { selectLocale } from '../src/server/oauth-locale.js';
-import { fixture, begin } from './oauth.test.js';
+import { fixture, begin, legacyConnection } from './oauth.test.js';
 
 const zh = { 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8' };
 const callback = state => `/auth/feishu/callback?state=${state}&code=code`;
@@ -60,7 +60,7 @@ test('success uses callback browser language without changing native cookies or 
   assert.match(res.body, /<meta http-equiv="refresh" content="0;url=\/">/);
   assert.doesNotMatch(res.body, /<h1>|<a |登录成功|继续前往/);
   assert.equal(res.headers['set-cookie'].length, 2);
-  assert.match(res.headers['set-cookie'][0], /HttpOnly; SameSite=Strict/);
+  assert.match(res.headers['set-cookie'][0], /-session=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+; Path=\/; Max-Age=1209600; HttpOnly; SameSite=Lax; Secure/);
   assert.match(res.headers['set-cookie'][1], /Max-Age=0/);
   assert.doesNotMatch(JSON.stringify(res), /PRIVATE_/);
   const replay = await f.request(callback(state), { ...zh, cookie });
@@ -118,13 +118,13 @@ test('provider and identity failures are localized without leaking secrets', asy
 
 test('unexpected request failures are localized and sanitized', async t => {
   const f = fixture({ rootPage: true }); t.after(() => f.close());
-  f.ctx.connection.isTrusted = () => { throw Error('PRIVATE_REQUEST'); };
+  f.ctx.connection.isTrustedRequest = () => { throw Error('PRIVATE_REQUEST'); };
   const res = await f.request('/', zh);
   assert.equal(res.status, 400); assert.equal(res.body, '请求无效');
 });
 
 test('native token recovery stays untranslated and authenticated root serves the app', async t => {
-  const f = fixture({ rootPage: true }); t.after(() => f.close());
+  const f = fixture({ rootPage: true }, {}, legacyConnection()); t.after(() => f.close());
   const recovery = await f.request('/?token=PRIVATE_LAUNCH_TOKEN', zh);
   assert.equal(recovery.status, 303); assert.equal(recovery.body, '');
   assert.equal(recovery.headers.location, './');
