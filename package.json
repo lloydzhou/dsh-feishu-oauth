@@ -24,6 +24,7 @@
     ".": "./src/server/index.js",
     "./client": "./dist/client.js",
     "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
   "files": [
@@ -31,6 +32,7 @@
     "dist/client.js",
     "locale",
     "cordis.patch.yml",
+    "icon.svg",
     "README.md",
     "LICENSE",
     "SECURITY.md",

@@ -20,7 +20,7 @@ test('public exports resolve to shipped runtime files without development source
   const shipped = new Set(pack.files.map(file => file.path));
   assert.deepEqual(manifest.exports, {
     '.': './src/server/index.js', './client': './dist/client.js',
-    './locale/*.json': './locale/*.json', './package.json': './package.json',
+    './locale/*.json': './locale/*.json', './icon': './icon.svg', './package.json': './package.json',
   });
   assert.equal(manifest.main, manifest.exports['.']);
   assert.equal(plugin.name, 'feishu-oauth');
