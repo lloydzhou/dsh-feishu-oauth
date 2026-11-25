@@ -1,6 +1,6 @@
 {
   "name": "dsh-feishu-oauth",
-  "version": "0.2.2-rc.2",
+  "version": "0.2.2-rc.3",
   "description": "Feishu OAuth login for DeepSeek Harness using native session cookies",
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/lloydzhou/dsh-feishu-oauth.git" },
@@ -9,8 +9,8 @@
   "keywords": ["dsh", "deepseek-harness", "feishu", "oauth", "plugin"],
   "type": "module",
   "main": "./src/server/index.js",
-  "exports": { ".": "./src/server/index.js", "./client": "./dist/client.js", "./locale/*.json": "./locale/*.json", "./package.json": "./package.json" },
-  "files": ["src/server", "dist/client.js", "locale", "cordis.patch.yml", "README.md", "LICENSE", "SECURITY.md", "SETTINGS-INTEGRATION.md", "ASSET-ATTRIBUTION.md"],
+  "exports": { ".": "./src/server/index.js", "./client": "./dist/client.js", "./locale/*.json": "./locale/*.json", "./icon": "./icon.svg", "./package.json": "./package.json" },
+  "files": ["src/server", "dist/client.js", "locale", "cordis.patch.yml", "icon.svg", "README.md", "LICENSE", "SECURITY.md", "SETTINGS-INTEGRATION.md", "ASSET-ATTRIBUTION.md"],
   "engines": { "node": ">=24.9.0", "dsh": ">=0.2.1-rc.3" },
   "scripts": {
     "test": "node --test test/*.test.js",
