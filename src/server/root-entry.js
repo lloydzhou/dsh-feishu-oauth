@@ -1,4 +1,5 @@
 import { oauthLocale, loginCsp } from './oauth-locale.js';
+import { whaleMark, feishuMark, arrowIcon, shieldIcon, escapeHtml } from './login-page.js';
 
 /**
  * Root entry cooperation with whatever owns exact "/".
@@ -15,16 +16,18 @@ import { oauthLocale, loginCsp } from './oauth-locale.js';
 
 const MARKER = 'data-feishu-oauth-entry';
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-}
 
 /** Styles matching the official card language (light-dark tokens, 44px controls). */
-export const entryStyles = `.feishu-oauth-entry{display:flex;flex-direction:column;gap:12px}.feishu-oauth-entry h2{margin:0;font-size:14px;line-height:1.5;font-weight:500}.feishu-oauth-entry a.feishu-oauth-button{display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;padding:8px 12px;border-radius:8px;font-size:14px;line-height:1.5;font-weight:500;text-decoration:none;color:light-dark(#fff,#222);background:light-dark(#3370ff,#679efe)}@media(hover:hover){.feishu-oauth-entry a.feishu-oauth-button:hover{background:light-dark(#2b5fd9,#8ab4ff)}}`;
+export const entryStyles = `.feishu-oauth-entry{display:flex;flex-direction:column;gap:12px}.feishu-oauth-entry .fo-brands{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0}.feishu-oauth-entry .fo-brand{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:72px}.feishu-oauth-entry .fo-brand svg{display:block;width:36px;height:36px}.feishu-oauth-entry .fo-brand-name{font-size:12px;font-weight:600;line-height:1.5}.feishu-oauth-entry .fo-harness{font-size:10px;letter-spacing:.14em}.feishu-oauth-entry .feishu-mark{color:light-dark(#3370ff,#679efe)}.feishu-oauth-entry .fo-cross{color:color-mix(in srgb,currentColor 55%,transparent);font-size:18px;font-weight:300;padding-bottom:22px}.feishu-oauth-entry .fo-subtitle{text-align:center}.feishu-oauth-entry a.feishu-oauth-button{display:flex;align-items:center;justify-content:center;gap:10px;box-sizing:border-box;min-height:44px;padding:8px 12px;border-radius:8px;font-size:14px;line-height:1.5;font-weight:500;text-decoration:none;color:light-dark(#fff,#222);background:light-dark(#222,#eee)}.feishu-oauth-entry a.feishu-oauth-button svg{flex:none;width:16px;height:16px}@media(hover:hover){.feishu-oauth-entry a.feishu-oauth-button:hover{background:light-dark(#3c3c3d,#d4d4d4)}}.feishu-oauth-entry .fo-note{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.6;color:color-mix(in srgb,currentColor 72%,transparent)}.feishu-oauth-entry .fo-note svg{flex:none;width:13px;height:13px;margin-top:3px}`;
 
-/** The Feishu card inserted into the official sign-in page. */
+/** The Feishu card inserted into the official sign-in page: the login card's brand row, description, button and access note. */
 export function entryCard(text) {
-  return `<section class="feishu-oauth-entry" ${MARKER} aria-labelledby="feishu-oauth-title"><h2 id="feishu-oauth-title">${escapeHtml(text.feishuName)}</h2><p class="hint">${escapeHtml(text.subtitle)}</p><a class="feishu-oauth-button" href="/auth/feishu/start">${escapeHtml(text.signIn)}</a><p class="hint">${escapeHtml(text.accessNote)}</p></section>`;
+  return `<section class="feishu-oauth-entry" ${MARKER} aria-label="${escapeHtml(text.signIn)}">`
+    + `<div class="fo-brands"><div class="fo-brand" role="img" aria-label="DeepSeek Harness">${whaleMark}<span class="fo-brand-name fo-harness" aria-hidden="true">HARNESS</span></div><span class="fo-cross" aria-hidden="true">×</span><div class="fo-brand">${feishuMark}<span class="fo-brand-name">${escapeHtml(text.feishuName)}</span></div></div>`
+    + `<p class="hint fo-subtitle">${escapeHtml(text.subtitle)}</p>`
+    + `<a class="feishu-oauth-button" href="/auth/feishu/start"><span>${escapeHtml(text.signIn)}</span>${arrowIcon}</a>`
+    + `<div class="fo-note">${shieldIcon}<span>${escapeHtml(text.accessNote)}</span></div>`
+    + '</section>';
 }
 
 /**

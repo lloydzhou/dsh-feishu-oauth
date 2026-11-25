@@ -36,9 +36,13 @@ test('the official sign-in page keeps every native method and gains the Feishu c
   assert.match(html, /id="token-form"/);
   assert.match(html, /<dsh-device-pairing>/);
   assert.match(html, /<script>boot\(\)<\/script>/);
-  assert.match(html, /<div class="methods"><section class="feishu-oauth-entry"[^>]*>.*href="\/auth\/feishu\/start"/);
+  assert.match(html, /<div class="methods"><section class="feishu-oauth-entry"[^>]*>.*href="\/auth\/feishu\/start"/s);
   assert.match(html, /Sign in with Feishu/);
   assert.equal(html.match(/data-feishu-oauth-entry/g).length, 1);
+  assert.match(html, /class="fo-brands".*aria-label="DeepSeek Harness".*HARNESS.*class="feishu-mark".*Feishu/s);
+  assert.match(html, /Connect with Feishu to access your workspace\./);
+  assert.match(html, /class="fo-note">.*Only authorize people you trust\./);
+  assert.doesNotMatch(html, /<script[^>]*>[^<]*feishu/i, 'no script injected');
   assert.ok(html.indexOf('<style>.feishu-oauth-entry') < html.indexOf('</head>'));
   assert.equal(['writeHead', 'flushHeaders', 'write', 'end'].some(name => Object.hasOwn(res, name)), false, 'methods restored');
 });
