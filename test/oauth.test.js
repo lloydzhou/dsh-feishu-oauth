@@ -11,7 +11,14 @@ export function providerConnection() {
   const providers = [];
   return { providers, peer: PEER,
     isTrustedRequest(request) { return ['dsh.example', 'localhost:3080', '192.0.2.10:3080'].includes(request.headers?.host); },
-    authentication: { register(provider) { providers.push(provider); } },
+    // The host registry returns a disposer; the plugin must bind it to its own
+    // effect, otherwise stale providers outlive a credential change.
+    authentication: {
+      register(provider) {
+        providers.push(provider);
+        return () => { const index = providers.indexOf(provider); if (index >= 0) providers.splice(index, 1); };
+      },
+    },
     createPeer(options) { assert.deepEqual(options, { principal: { kind: 'owner' } }); return PEER; },
     browserPeer: PEER,
   };
@@ -46,7 +53,7 @@ export function fixture(overrides = {}, dependencies = {}, connection, presetRou
       await routes.get(new URL(url, publicUrl).pathname).handler({ url, method, headers: { host: 'dsh.example', ...headers } }, res);
       return res;
     },
-    async close() { for (const dispose of disposers.reverse()) await dispose(); },
+    async close() { for (const dispose of disposers.reverse()) await dispose?.(); },
   };
 }
 export async function begin(f) {

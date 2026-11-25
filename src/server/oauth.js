@@ -71,11 +71,22 @@ function cookieNames(publicUrl) {
  * trust API the host exposes (isTrustedRequest on dsh 0.2.3-alpha.2+,
  * isTrusted before that). The webserver Host fence runs the same check for
  * every route; this keeps the OAuth handlers honest under direct dispatch.
+ *
+ * Defence in depth, not the primary gate: when neither trust API exists the
+ * host is trusted (an unknown host must degrade to the firewall's behaviour,
+ * never fail closed on a guess). On a host that renames the trust API again this
+ * turns permissive rather than loud, so the Host fence upstream must stay the
+ * authority for what reaches these handlers.
  */
 function requestOrigin(ctx, req, protocol) {
   const host = req.headers.host;
   if (typeof host !== 'string') return undefined;
   const connection = ctx.connection;
+  // isTrustedRequest is typed private on the host's HostConnectionService but is
+  // the only sync trust check reachable here (connection.admit would recurse
+  // back into this provider). If a future host hides it, this silently falls
+  // back to isTrusted or to "trusted" - check this line first when a host
+  // upgrade starts admitting unexpected origins.
   const trusted = typeof connection?.isTrustedRequest === 'function' ? connection.isTrustedRequest({ headers: { host } })
     : typeof connection?.isTrusted === 'function' ? connection.isTrusted({ headers: { host } }) : undefined;
   if (trusted === false) return undefined;
@@ -270,7 +281,12 @@ export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.no
       const session = sessions.verify(cookieValue(headers.cookie, cookieNames(new URL(c.publicUrl ?? requestUrl.origin)).session), now());
       return session ? peer : undefined;
     };
-    registry.register({ authenticate });
+    // The registry scopes registrations to its own owner (the connection
+    // service), not to this plugin, so the returned disposer must be bound to
+    // our effect: otherwise every settings change that remounts the plugin
+    // leaves a stale provider behind, and a rotated appSecret would keep
+    // honouring sessions signed with the old one until the host restarts.
+    ctx.effect(() => registry.register({ authenticate }), 'feishu-oauth: authentication provider');
     // Cooperate with whoever owns "/" instead of competing for the route: the
     // official sign-in page gains a Feishu card, and a bare 401 on "/" becomes
     // the Feishu login page. Registration order never matters.

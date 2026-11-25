@@ -20,14 +20,15 @@ test('public exports resolve to shipped runtime files without development source
   const shipped = new Set(pack.files.map(file => file.path));
   assert.deepEqual(manifest.exports, {
     '.': './src/server/index.js', './client': './dist/client.js',
-    './locale/*.json': './locale/*.json', './icon': './icon.svg', './package.json': './package.json',
+    './icon': './icon.svg',
+    './locale/*.json': './locale/*.json', './package.json': './package.json',
   });
   assert.equal(manifest.main, manifest.exports['.']);
   assert.equal(plugin.name, 'feishu-oauth');
   assert.equal(typeof plugin.apply, 'function');
   assert.equal(manifest.dsh.client.platform, 'web');
   assert.ok(shipped.has(manifest.dsh.bundle.patch.slice(2)));
-  for (const specifier of ['', '/client', '/locale/en.json', '/locale/zh.json', '/package.json']) {
+  for (const specifier of ['', '/client', '/icon', '/locale/en.json', '/locale/zh.json', '/package.json']) {
     const resolved = new URL(import.meta.resolve(`dsh-feishu-oauth${specifier}`));
     const path = fileURLToPath(resolved).slice(fileURLToPath(root).length).replaceAll('\\', '/');
     assert.ok(shipped.has(path), `public export is shipped: ${path}`);

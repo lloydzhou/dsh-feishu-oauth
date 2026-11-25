@@ -9,8 +9,10 @@ import { mountSettings } from '../src/server/settings.js';
 const official = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sign in</title><style>.card{}</style></head><body><main class="page"><section class="card" aria-labelledby="title"><h1 id="title">Sign in</h1><p id="description" class="description">d</p><div class="methods"><form id="token-form" action="./" method="get"><input id="token" name="token"></form><dsh-device-pairing></dsh-device-pairing></div></section></main><script>boot()</script></body></html>';
 
 class FakeResponse {
-  constructor() { this.status = undefined; this.headers = undefined; this.body = Buffer.alloc(0); this.writableEnded = false; }
+  constructor() { this.status = undefined; this.headers = undefined; this.body = Buffer.alloc(0); this.writableEnded = false; this.listeners = new Map(); }
   get socket() { return {}; }
+  once(name, fn) { const queue = this.listeners.get(name); this.listeners.set(name, queue ? [...queue, fn] : [fn]); return this; }
+  emit(name) { const queue = this.listeners.get(name) ?? []; this.listeners.delete(name); for (const fn of queue) fn(); }
   writeHead(status, headers) { if (this.headersSent) throw Error('headers already sent'); this.status = status; this.headers = headers; this.headersSent = true; return this; }
   // Like node: flushing without an explicit head sends an implicit 200.
   flushHeaders() { if (!this.headersSent) this.writeHead(200, {}); }
@@ -120,4 +122,23 @@ test('through mountSettings, provider hosts join the registry and leave "/" to t
   assert.ok(routes.has('/auth/feishu/login'));
   assert.equal(typeof listeners.get('webserver/request'), 'function');
   for (const dispose of disposers.reverse()) await dispose?.();
+});
+
+test('a client abort while the response is held releases the hooks', async () => {
+  const res = new FakeResponse();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const pending = createRootEntry()({ method: 'GET', url: '/', headers: {} }, res, async () => {
+    res.writeHead(401, { 'content-type': 'text/html; charset=utf-8' });
+    res.write('<!doctype html><html><head></head><body><section>partial');
+    await gate;
+    res.end();
+  });
+  assert.equal(Object.hasOwn(res, 'writeHead'), true, 'hooks are installed while held');
+  res.emit('close');
+  assert.equal(Object.hasOwn(res, 'writeHead'), false, 'hooks dropped when the client goes away');
+  assert.equal(Object.hasOwn(res, 'end'), false);
+  assert.equal(Object.hasOwn(res, 'flushHeaders'), false);
+  release();
+  await pending;
 });

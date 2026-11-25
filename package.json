@@ -1,6 +1,6 @@
 {
   "name": "dsh-feishu-oauth",
-  "version": "0.2.2-rc.5",
+  "version": "0.2.2-rc.6",
   "description": "Feishu OAuth login for DeepSeek Harness using native session cookies",
   "license": "MIT",
   "repository": {

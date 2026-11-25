@@ -86,6 +86,10 @@ export function createRootEntry() {
     const restore = () => { for (const [name, own, fn] of saved) { if (own) res[name] = fn; else delete res[name]; } };
     const original = Object.fromEntries(saved.map(([name, , fn]) => [name, fn]));
     let held;
+    // A client may abort before end() runs, leaving the hooks on a destroyed
+    // response; drop them on close so nothing outlives the request.
+    const onClose = () => { if (held) { held = undefined; restore(); } };
+    res.once?.('close', onClose);
     const chunks = [];
     const collect = (chunk, encoding) => {
       if (chunk === undefined || chunk === null || typeof chunk === 'function') return;
