@@ -22,18 +22,34 @@ dsh plugin --profile web add .
 
 1. 在 Plugins 页面启用本插件 bundle，保持 `feishu-oauth` 插件行加载。配置中的“启用飞书登录”默认关闭，与 bundle 总开关不同。
 2. 使用 DSH 启动时打印的原生 token URL 登录，打开 Plugins → 已安装插件 → 本插件配置页面。
-3. 在飞书应用中限定可信人员的可用范围，并登记卡片显示的精确回调地址：浏览器当前 origin 加 `/auth/feishu/callback`。
-4. 输入 App ID 和 App Secret **原始值**（不是环境变量名），启用并保存。首次配置需填写 Secret；之后密码框留空表示保留现值。保存成功或配置冲突后重新载入表单再编辑。
+3. 在飞书应用中限定可信人员的可用范围，并登记卡片显示的精确回调地址：配置了 `publicUrl` 时为其根地址加 `/auth/feishu/callback`，否则为浏览器当前 origin 加同一路径。
+4. 输入 App ID 和 App Secret **原始值**（不是环境变量名），按需填写 `publicUrl`，启用并保存。首次配置需填写 Secret；之后密码框留空表示保留现值。保存成功或配置冲突后重新载入表单再编辑。
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
 | `enabled` | `false` | 启用 OAuth 路由 |
 | `appId` | 空 | 飞书 App ID |
 | `appSecret` | 空 | 原始 App Secret；读取时脱敏，表单留空保留现值 |
+| `publicUrl` | 空 | 可选公开访问基址，只接受 http(s) 根地址；留空沿用当前请求地址 |
+
+### 公开访问基址（`publicUrl`）
+
+`publicUrl` 用于把 OAuth 面向浏览器的地址固定为管理员配置的公开基址。留空时完全沿用原有行为：按每次请求的可信 Host 和原生 listener 协议组合出 origin。填写后，以下位置使用该基址：
+
+- 飞书授权请求和 token 交换中的 `redirect_uri`；
+- OAuth 临时 Cookie 的命名、`Secure` 属性和 state 绑定；
+- 成功登录时通过原生 `authenticatedUrl()` / `authorizeIndex()` 换取 Cookie 的基址；
+- 设置卡片中只读回调地址的展示。
+
+原生 Token 恢复入口 `/?token=...` 仍原样委托给 DSH，不受 `publicUrl` 影响；原生 Cookie 的签名、Host 信任和 listener 协议也不由本插件改变。`publicUrl` 来自已保存配置而不是请求参数，不会成为开放重定向目标。
+
+`publicUrl` **不会**把公开域名加入原生 Host 信任列表，也不会修改 `ctx.connection.trustedHosts`。原生把两者明确分开：`dsh --profile web --public-url ...` 的帮助文本明确写着 “grants no trust”；准入由 `--trusted-host <host[:port]>` 或 web profile 中 `client-connection` 行的 `trustedHosts` 配置决定。若反向代理保留真实 Host，宿主必须已经配置该精确 authority；否则请求会在进入 OAuth 逻辑前被拒绝（403），配置 `publicUrl` 也不能绕过。该信任配置需要宿主侧修改并重新加载/重启；插件没有安全的公开运行时 API 增删 authority，也不会自动添加。注意 `trustedHosts` 是部署级 `/api` Host/Origin 准入列表，不是 OAuth 专用白名单；加入公开域名不会跳过 Cookie/token 认证或同源检查，但会让该 authority 与整个 Web UI/API 一样通过 Host fence。反过来说，若代理保留真实 Host 且 DSH 已信任它，请求地址本身已经等于公开基址，`publicUrl` 只在需要显式固定 origin（例如 Host 被改写或存在多个可信地址）时才需要。
+
+校验只接受 `http(s)` 的根 origin（例如 `https://dsh.example` 或 `http://192.0.2.10:3080`），拒绝凭据、查询串、片段、空白/控制字符和反斜杠。原生 web-app 的 `--public-url` 允许 `host/prefix`；本插件的登录路由固定在根路径，因此这里**不支持路径前缀**：插件只注册 `/`、`/auth/feishu/start` 和 `/auth/feishu/callback` 精确路由，成功页也返回 `/`，因此 `https://dsh.example/dsh` 之类的地址无效。表单会在保存前校验；若手工修改 profile 写入无效值，激活会失败并撤下 OAuth 路由，原生 token 恢复仍可用。填写后浏览器也必须通过该基址访问 DSH；否则临时 HttpOnly Cookie 不会带回回调，登录会安全失败。
 
 密码框始终空白载入，成功保存后清空；界面不显示 Secret 是否已配置。脱敏和密码遮罩不等于加密：**App Secret 以明文存储于本机 profile 配置**，请保护配置文件及备份。
 
-允许 HTTP 访问 DSH，但浏览器提交设置时的 App Secret、原生登录凭据和会话流量均没有传输加密。飞书 provider 请求始终使用 HTTPS，这不保护浏览器到 DSH 的 HTTP 链路。建议使用原生 HTTPS；不支持 HTTPS 在反向代理终止、DSH 仍监听 HTTP 的部署。访问地址必须满足原生 Connection 信任规则，Host 保持不变，并与飞书登记的回调地址一致。
+允许 HTTP 访问 DSH，但浏览器提交设置时的 App Secret、原生登录凭据和会话流量均没有传输加密。飞书 provider 请求始终使用 HTTPS，这不保护浏览器到 DSH 的 HTTP 链路。建议使用原生 HTTPS。`publicUrl` 只固定 OAuth 面向浏览器的基址，不改变原生 Host 信任、listener 协议或原生 Cookie 的安全属性，也不单独构成对 TLS 终止反向代理的支持。浏览器实际访问的地址必须与飞书登记的回调一致。
 
 ## 登录与恢复
 
@@ -46,7 +62,8 @@ OAuth 关闭或应用凭据缺失时不注册登录路由。设置集成捕获�
 ## 保护措施与限制
 
 - state 单次使用、绑定浏览器，有效期 300 秒，最多 256 个待处理 state；最多同时进行 16 个 provider 交换流程。这些是单进程容量限制，**不是按 IP 限流，也不是 DoS 防护**。
-- 使用 S256 PKCE、固定 HTTPS provider 地址、禁止跟随 provider 重定向、请求超时及响应大小限制。临时 Cookie 为 HttpOnly/SameSite=Lax，HTTPS 下带 Secure。
+- 使用 S256 PKCE、固定 HTTPS provider 地址、禁止跟随 provider 重定向、请求超时及响应大小限制。临时 Cookie 为 HttpOnly/SameSite=Lax，有效公开基址为 HTTPS 时带 Secure。
+- `publicUrl` 只接受已保存配置中的 http(s) 根 origin，不能包含凭据、查询串、片段或路径；OAuth 重定向目标完全来自配置而非请求参数。它不会绕过原生 Host 信任，也不会改变 `/?token=...` 原生恢复或原生 Cookie 的签发与校验。浏览器必须通过配置的基址访问，否则临时 Cookie 不会返回回调。
 - 原生启动 token 不进入页面、浏览器重定向、外部 HTTP 请求或日志；插件不读取签名密钥。错误仅包含固定阶段 `TOKEN`、`USERINFO` 或 `NATIVE_COOKIE`，以及已收到的 HTTP 状态和飞书数字错误码，不回显 provider 正文或凭据。
 - `TOKEN/HTTP_400/CODE_20002` 表示飞书拒绝应用凭据；只有 `TOKEN` 表示未收到 token 接口响应头。排查后从首页重新登录，不刷新已消耗授权码的回调页。
 - state 只在进程内存中保存；进程退出或配置更新会使待登录失效。同一浏览器发起新登录会覆盖旧临时绑定。绕过 Connection 的自定义 listener 不在保护范围内。

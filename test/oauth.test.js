@@ -5,8 +5,8 @@ import { mount, resolve, nativeCookie } from '../src/server/oauth.js';
 
 export const config = { enabled: true, appId: 'app', appSecret: 'PRIVATE_APP_SECRET' };
 const publicUrl = 'https://dsh.example/';
-export function fixture(overrides = {}, dependencies = {}, connection) {
-  const routes = new Map(), disposers = [], calls = [];
+export function fixture(overrides = {}, dependencies = {}, connection, presetRoutes = []) {
+  const routes = new Map(presetRoutes), disposers = [], calls = [];
   const ctx = { webServer: { protocol: 'https:', async readResource(request, peer) { assert.equal(request.url, 'https://dsh.example/index.html'); assert.equal(peer, ctx.connection.browserPeer); return new Response('<html>native app</html>', { headers: { 'content-type': 'text/html' } }); }, register(route) { if (routes.has(route.path)) throw Error('duplicate'); routes.set(route.path, route); return () => routes.delete(route.path); } },
     connection: connection ?? {
       isTrusted(req) { return ['dsh.example', '192.0.2.10:3080', 'localhost:3080'].includes(req.headers.host); },
@@ -65,7 +65,7 @@ test('GET and authority fences reject forwarded-header bypass', async () => {
   await f.close(); assert.equal(f.routes.size, 0);
 });
 test('PKCE, browser binding, single use and native cookie with no secret disclosure', async () => {
-  const f = fixture(); const { res, state, cookie } = await begin(f);
+  const f = fixture({ rootPage: true }); const { res, state, cookie } = await begin(f);
   const auth = new URL(res.headers.location);
   assert.equal(auth.origin, 'https://accounts.feishu.cn'); assert.equal(auth.searchParams.get('code_challenge_method'), 'S256');
   assert.match(res.headers['set-cookie'], /HttpOnly; SameSite=Lax; Secure/);
@@ -92,8 +92,31 @@ test('PKCE, browser binding, single use and native cookie with no secret disclos
   assert.equal(home.body.toString(), '<html>native app</html>');
 });
 test('native recovery works on a different authority without exposing token to OAuth', async () => {
-  const f = fixture(); assert.equal((await f.request('/?token=PRIVATE_LAUNCH_TOKEN', { host: 'localhost:3080' })).status, 303);
+  const f = fixture({ rootPage: true }); assert.equal((await f.request('/?token=PRIVATE_LAUNCH_TOKEN', { host: 'localhost:3080' })).status, 303);
   assert.match((await f.request('/')).body, /Sign in with Feishu/);
+});
+test('root path stays free by default; the Feishu login page moves to /auth/feishu/login', async () => {
+  const f = fixture();
+  assert.equal(f.routes.has('/'), false);
+  assert.ok(f.routes.has('/auth/feishu/login'));
+  assert.ok(f.routes.has('/auth/feishu/start'));
+  assert.ok(f.routes.has('/auth/feishu/callback'));
+  const login = await f.request('/auth/feishu/login');
+  assert.equal(login.status, 200);
+  assert.match(login.body, /Sign in with Feishu/);
+  assert.match(login.headers['content-type'], /text\/html/);
+  await f.close();
+});
+test('rootPage: true registers the root wall and an occupied "/" is skipped without losing OAuth', async () => {
+  const hostGateway = { path: '/', handler() {} };
+  const f = fixture({ rootPage: true }, {}, undefined, [['/', hostGateway]]);
+  assert.equal(f.routes.get('/'), hostGateway);
+  assert.ok(f.routes.has('/auth/feishu/login'));
+  assert.ok(f.routes.has('/auth/feishu/start'));
+  assert.ok(f.routes.has('/auth/feishu/callback'));
+  const a = await begin(f);
+  assert.equal((await f.request(callback(a.state), { cookie: a.cookie, 'sec-fetch-site': 'cross-site' })).status, 200);
+  await f.close();
 });
 test('expired state, duplicate parameters and full storage reject', async () => {
   let clock = 0; const f = fixture({}, { now: () => clock }); const a = await begin(f);

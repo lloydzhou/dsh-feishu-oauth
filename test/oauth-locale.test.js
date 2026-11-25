@@ -24,7 +24,7 @@ test('browser locale selection honors quality, ties, variants, exclusions and En
 });
 
 test('login pages use browser language and only safe static HTML language tags', async t => {
-  const f = fixture(); t.after(() => f.close());
+  const f = fixture({ rootPage: true }); t.after(() => f.close());
   for (const [header, language, signIn, recovery] of [
     [undefined, 'en', 'Sign in with Feishu', 'Feishu access grants full owner privileges.'],
     [zh['accept-language'], 'zh', '使用飞书授权登录', '完整的所有者权限'],
@@ -52,7 +52,7 @@ test('login pages use browser language and only safe static HTML language tags',
 });
 
 test('success uses callback browser language without changing native cookies or replay protection', async t => {
-  const f = fixture(); t.after(() => f.close());
+  const f = fixture({ rootPage: true }); t.after(() => f.close());
   const { state, cookie } = await begin(f);
   const res = await f.request(callback(state), { ...zh, cookie });
   assert.equal(res.status, 200);
@@ -68,7 +68,7 @@ test('success uses callback browser language without changing native cookies or 
 });
 
 test('public request fences and state capacity errors are translated', async t => {
-  const f = fixture(); t.after(() => f.close());
+  const f = fixture({ rootPage: true }); t.after(() => f.close());
   for (const [url, headers, method, status, body] of [
     ['/auth/feishu/start', {}, 'POST', 405, '不支持此请求方法'],
     ['/auth/feishu/start', { host: 'evil' }, 'GET', 403, '禁止访问'],
@@ -88,7 +88,7 @@ test('public request fences and state capacity errors are translated', async t =
 });
 
 test('declined and malformed callbacks retain fixed localized messages and consume state', async t => {
-  const f = fixture(); t.after(() => f.close());
+  const f = fixture({ rootPage: true }); t.after(() => f.close());
   for (const [query, body] of [
     ['error=PRIVATE_PROVIDER_ERROR&error_description=PRIVATE_DESCRIPTION', '飞书登录已被拒绝，请重新登录'],
     ['code=%3Cscript%3EPRIVATE_INPUT', '登录响应无效，请重新登录'],
@@ -117,14 +117,14 @@ test('provider and identity failures are localized without leaking secrets', asy
 });
 
 test('unexpected request failures are localized and sanitized', async t => {
-  const f = fixture(); t.after(() => f.close());
+  const f = fixture({ rootPage: true }); t.after(() => f.close());
   f.ctx.connection.isTrusted = () => { throw Error('PRIVATE_REQUEST'); };
   const res = await f.request('/', zh);
   assert.equal(res.status, 400); assert.equal(res.body, '请求无效');
 });
 
 test('native token recovery stays untranslated and authenticated root serves the app', async t => {
-  const f = fixture(); t.after(() => f.close());
+  const f = fixture({ rootPage: true }); t.after(() => f.close());
   const recovery = await f.request('/?token=PRIVATE_LAUNCH_TOKEN', zh);
   assert.equal(recovery.status, 303); assert.equal(recovery.body, '');
   assert.equal(recovery.headers.location, './');

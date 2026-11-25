@@ -1,6 +1,7 @@
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { oauthLocale, loginCsp } from './oauth-locale.js';
 
+const LOGIN = '/auth/feishu/login';
 const START = '/auth/feishu/start';
 const CALLBACK = '/auth/feishu/callback';
 const AUTHORIZE = 'https://accounts.feishu.cn/open-apis/authen/v1/authorize';
@@ -35,11 +36,26 @@ function single(params, name) {
   return values.length === 1 ? values[0] : undefined;
 }
 
+/**
+ * Validate the optional canonical public base. Only an http(s) root origin is
+ * representable: the OAuth routes live at the root, so a path prefix cannot be
+ * honoured, and credentials/query/fragment must never become a redirect target.
+ */
+export function publicBase(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string' || /[\s\u0000-\u001F\u007F\\?#]/.test(value)) throw new Error('Invalid public URL');
+  let url;
+  try { url = new URL(value); } catch { throw new Error('Invalid public URL'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Invalid public URL');
+  if (url.pathname !== '/' || url.href !== `${url.origin}/`) throw new Error('Invalid public URL path');
+  return url.origin;
+}
+
 /** Incomplete credentials leave native login untouched. */
 export function resolve(config, protocol) {
   if (!config.enabled || !config.appId || !config.appSecret) return undefined;
   if (!['http:', 'https:'].includes(protocol)) throw new Error('Unsupported listener protocol');
-  return { appId: config.appId, secret: config.appSecret };
+  return { appId: config.appId, secret: config.appSecret, publicUrl: publicBase(config.publicUrl) };
 }
 
 /** Derive an origin only from an authority accepted by native DSH Host policy. */
@@ -67,6 +83,11 @@ export function nativeCookie(connection, headers, publicUrl) {
 export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.now, stateTtlSeconds = 300, maxPendingStates = 256, fetchTimeoutMs = 10000 } = {}) {
   const c = resolve(config, ctx.webServer.protocol);
   if (!c) return;
+  // Opt-in root wall: dsh 0.2.3-alpha.2+ hosts run the remote-connection gateway
+  // (QR pairing / token login) on exact "/", and duplicate exact routes make the
+  // late registrant fail to activate. Keep "/" free by default; the Feishu login
+  // page lives at /auth/feishu/login either way, and a completed Feishu login
+  // mints the native session cookie, so the host gateway admits it as usual.
   const states = new Map();
   const operations = new Set();
   let exchanges = 0;
@@ -94,19 +115,21 @@ export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.no
     if (req.method !== 'GET') return reply(res, 405, text.methodNotAllowed, { allow: 'GET' });
     // Recovery remains delegated verbatim, including native authority handling.
     if (path === '/' && new URL(req.url, 'http://localhost/').searchParams.has('token')) { ctx.connection.authorizeIndex(req, res); return; }
-    const url = requestOrigin(ctx, req);
-    if (!url) return reply(res, 403, text.forbidden);
-    const target = new URL(req.url, url);
-    if (target.origin !== url.origin) return reply(res, 403, text.forbidden);
-    const cookieName = `dsh-feishu-${hash(url.origin).slice(0, 16)}`;
-    const cookie = (value, age) => `${cookieName}=${value}; Path=/auth/feishu; Max-Age=${age}; HttpOnly; SameSite=Lax${url.protocol === 'https:' ? '; Secure' : ''}`;
+    const requestUrl = requestOrigin(ctx, req);
+    if (!requestUrl) return reply(res, 403, text.forbidden);
+    const target = new URL(req.url, requestUrl);
+    if (target.origin !== requestUrl.origin) return reply(res, 403, text.forbidden);
+    // OAuth-facing URLs use the configured public base; trust still comes from the request Host.
+    const publicUrl = new URL(c.publicUrl ?? requestUrl.origin);
+    const cookieName = `dsh-feishu-${hash(publicUrl.origin).slice(0, 16)}`;
+    const cookie = (value, age) => `${cookieName}=${value}; Path=/auth/feishu; Max-Age=${age}; HttpOnly; SameSite=Lax${publicUrl.protocol === 'https:' ? '; Secure' : ''}`;
     const clearCookie = () => cookie('', 0);
-    const callbackUrl = new URL(CALLBACK, url).href;
+    const callbackUrl = new URL(CALLBACK, publicUrl).href;
     if (path === '/') {
       const probe = capture();
       if (ctx.connection.authorizeIndex(req, probe)) {
         // Admission is native; the resource read renders the existing app without a browser redirect.
-        const page = await ctx.webServer.readResource(new Request(new URL('/index.html', url)), ctx.connection.browserPeer);
+        const page = await ctx.webServer.readResource(new Request(new URL('/index.html', requestUrl)), ctx.connection.browserPeer);
         const body = Buffer.from(await page.arrayBuffer());
         res.writeHead(page.status, { ...Object.fromEntries(page.headers), 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
         res.end(body);
@@ -114,13 +137,14 @@ export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.no
       }
       return reply(res, 200, text.loginPage, { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': loginCsp });
     }
+    if (path === LOGIN) return reply(res, 200, text.loginPage, { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': loginCsp });
     if (path === START) {
-      if (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && req.headers.origin !== url.origin)) return reply(res, 403, text.forbidden);
+      if (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && req.headers.origin !== publicUrl.origin)) return reply(res, 403, text.forbidden);
       if (target.search) return reply(res, 400, text.unexpectedParameters);
       prune();
       if (states.size >= maxPendingStates) return reply(res, 503, text.busy);
       const state = nonce(), browser = nonce(), verifier = nonce();
-      states.set(state, { origin: url.origin, browser: hash(browser), verifier, expires: now() + stateTtlSeconds * 1000 });
+      states.set(state, { origin: publicUrl.origin, browser: hash(browser), verifier, expires: now() + stateTtlSeconds * 1000 });
       const auth = new URL(AUTHORIZE);
       auth.search = new URLSearchParams({ client_id: c.appId, response_type: 'code', redirect_uri: callbackUrl, state, code_challenge: hash(verifier), code_challenge_method: 'S256' }).toString();
       return reply(res, 303, '', { location: auth.href, 'set-cookie': cookie(browser, stateTtlSeconds) });
@@ -129,7 +153,7 @@ export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.no
     const browser = cookieValue(req.headers.cookie, cookieName);
     prune();
     const entry = states.get(state);
-    if (!entry || entry.origin !== url.origin || !browser || !same(hash(browser), entry.browser)) return reply(res, 400, text.expired);
+    if (!entry || entry.origin !== publicUrl.origin || !browser || !same(hash(browser), entry.browser)) return reply(res, 400, text.expired);
     states.delete(state); // Consume before any asynchronous operation, including errors.
     const cleared = { 'set-cookie': clearCookie() };
     if (target.searchParams.has('error')) return reply(res, 400, text.declined, cleared);
@@ -150,7 +174,7 @@ export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.no
       if (user.code !== 0 || typeof user.data?.open_id !== 'string' || !user.data.open_id.trim()) return failure(403, text.unverifiedIdentity);
       if (lifetime.signal.aborted) return reply(res, 503, text.unavailable, cleared);
       diagnostic = { stage: 'NATIVE_COOKIE' };
-      const cookies = nativeCookie(ctx.connection, req.headers, url.href);
+      const cookies = nativeCookie(ctx.connection, req.headers, `${publicUrl.origin}/`);
       // A rendered same-origin page ends the cross-site redirect chain before Strict-cookie navigation.
       return reply(res, 200, text.successPage, { 'content-type': 'text/html; charset=utf-8', 'set-cookie': [...cookies, clearCookie()] });
     } catch {
@@ -165,12 +189,23 @@ export function mount(ctx, config, { fetchImpl = globalThis.fetch, now = Date.no
     states.clear();
     await Promise.allSettled([...operations]);
   }, 'feishu-oauth: pending logins');
-  for (const path of ['/', START, CALLBACK]) ctx.effect(() => ctx.webServer.register({
-    kind: 'exact', path,
-    handler(req, res) {
-      const operation = handle(path, req, res).catch(() => { if (!res.headersSent) reply(res, 400, oauthLocale(req.headers['accept-language']).invalidRequest); });
-      operations.add(operation);
-      return operation.finally(() => operations.delete(operation));
-    },
-  }), `feishu-oauth: ${path}`);
+  const routePaths = config.rootPage === true ? ['/', LOGIN, START, CALLBACK] : [LOGIN, START, CALLBACK];
+  for (const path of routePaths) {
+    const register = () => ctx.webServer.register({
+      kind: 'exact', path, auth: 'anonymous',
+      handler(req, res) {
+        const operation = handle(path, req, res).catch(() => { if (!res.headersSent) reply(res, 400, oauthLocale(req.headers['accept-language']).invalidRequest); });
+        operations.add(operation);
+        return operation.finally(() => operations.delete(operation));
+      },
+    });
+    try {
+      ctx.effect(register, `feishu-oauth: ${path}`);
+    } catch (error) {
+      // Only the explicitly enabled root page may lose the registration race to
+      // the host gateway; OAuth login itself stays fully functional on its own paths.
+      if (path !== '/') throw error;
+      ctx.logger?.warn('feishu-oauth: exact "/" is already served by the host gateway; root wall skipped, Feishu login stays at ' + LOGIN_PATH);
+    }
+  }
 }

@@ -2,7 +2,7 @@ import { createElement as h, useState } from 'react';
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives';
 import en from '../../locale/en.json' with { type: 'json' };
 import zh from '../../locale/zh.json' with { type: 'json' };
-import { pickSettings, validateSettings, settingsOperations } from './settings-form.js';
+import { pickSettings, validateSettings, settingsOperations, callbackUrl } from './settings-form.js';
 
 export const inject = ['slots', 'locale', 'configForms'];
 const LOCALE = 'settings.feishuOAuth';
@@ -42,7 +42,9 @@ function Editor({ t, value, revision, writable, save, reset }) {
     field('appId', 'text', { autoComplete: 'off' }),
     field('appSecret', 'password', { autoComplete: 'new-password', spellCheck: false, placeholder: t('secretPlaceholder') }),
     h('p', { style: hint }, t('secretHint')),
-    h('p', { style: hint }, t('callback'), h('code', null, `${window.location.origin}/auth/feishu/callback`)),
+    field('publicUrl', 'text', { autoComplete: 'off', inputMode: 'url', spellCheck: false, placeholder: t('publicUrlPlaceholder') }),
+    h('p', { style: hint }, t('publicUrlHint')),
+    h('p', { style: hint }, t('callback'), h('code', null, callbackUrl(draft.publicUrl, window.location.origin))),
     h('p', { style: hint }, t('callbackHint')),
     h('p', { style: hint, role: window.location.protocol === 'http:' ? 'alert' : undefined }, t('httpWarning')),
     h('p', { style: hint }, t('saveHint')),

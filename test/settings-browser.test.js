@@ -29,7 +29,7 @@ test('built browser bundle registers authenticated form while OAuth is disabled 
   effects.reverse().forEach(dispose => dispose()); assert.equal(registered, false);
 });
 
-test('built editor exposes only three settings, derives HTTP callback and preserves blank secrets', async () => {
+test('built editor exposes only four settings, previews the effective callback and preserves blank secrets', async () => {
   const state = [], saves = [];
   let cursor = 0, plugin, Card;
   const react = {
@@ -37,6 +37,7 @@ test('built editor exposes only three settings, derives HTTP callback and preser
     useState(initial) { const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial; return [state[i], next => { state[i] = typeof next === 'function' ? next(state[i]) : next; }]; },
   };
   runInNewContext(readFileSync(new URL('../dist/client.js', import.meta.url), 'utf8'), {
+    URL,
     window: { location: { origin: 'http://192.0.2.10:3080', protocol: 'http:' }, __ModuleLoader__: { load(module) { plugin = module.factory(id => id === 'react' ? react : { Switch: 'NativeSwitch' }); } } },
   });
   plugin.apply({
@@ -44,12 +45,12 @@ test('built editor exposes only three settings, derives HTTP callback and preser
     configForms: { get: () => ({}), whileServed: (_names, fn) => fn() },
     slots: { inject: (_slot, fn) => fn(), register(_meta, component) { Card = component; return () => {}; } }, effect: fn => fn(),
   });
-  const props = { t, useConfig: () => ({ status: 'ready', revision: 9, writable: true, value: { enabled: false, appId: 'app', appSecret: 'NEVER-DISPLAY' } }), save: async (ops, revision) => { saves.push({ ops, revision }); return true; } };
-  const render = () => { cursor = 0; const editor = Card(props); return editor.type(editor.props); };
+  const props = { t, useConfig: () => ({ status: 'ready', revision: 9, writable: true, value: { enabled: false, appId: 'app', appSecret: 'NEVER-DISPLAY', publicUrl: '' } }), save: async (ops, revision) => { saves.push({ ops, revision }); return true; } };
+  const render = (value = props) => { cursor = 0; const editor = Card(value); return editor.type(editor.props); };
   const nodes = node => !node || typeof node !== 'object' ? [] : [node, ...node.children.flatMap(nodes)];
   let tree = render();
   const inputs = nodes(tree).filter(node => node.type === 'input');
-  assert.deepEqual(inputs.map(node => node.props.type), ['text', 'password']);
+  assert.deepEqual(inputs.map(node => node.props.type), ['text', 'password', 'text']);
   const toggle = nodes(tree).find(node => node.type === 'NativeSwitch');
   assert.equal(toggle.props.checked, false);
   assert.equal(toggle.props.label, t('enabled'));
@@ -57,12 +58,13 @@ test('built editor exposes only three settings, derives HTTP callback and preser
   tree = render();
   assert.equal(nodes(tree).find(node => node.type === 'NativeSwitch').props.checked, true);
   assert.equal(inputs[1].props.value, '');
+  assert.equal(inputs[2].props.value, '');
   assert.ok(JSON.stringify(tree).includes('http://192.0.2.10:3080/auth/feishu/callback'));
   assert.ok(JSON.stringify(tree).includes('HTTP 不加密'));
   assert.ok(!JSON.stringify(tree).includes('NEVER-DISPLAY'));
   await tree.props.onSubmit({ preventDefault() {} });
   assert.equal(saves[0].revision, 9);
-  assert.equal(saves[0].ops.length, 2);
+  assert.equal(saves[0].ops.length, 3);
   assert.ok(saves[0].ops.every(op => op.path[0] !== 'appSecret'));
   // Remount a fresh editor to enter a replacement, then verify successful save clears it.
   state.length = 0;
@@ -73,6 +75,11 @@ test('built editor exposes only three settings, derives HTTP callback and preser
   assert.equal(saves[1].ops[2].value, 'replacement-raw-secret');
   tree = render();
   assert.equal(nodes(tree).find(node => node.props.type === 'password').props.value, '');
+  // A valid public base replaces the browser-origin preview without touching the secret draft.
+  state.length = 0;
+  tree = render({ ...props, useConfig: () => ({ status: 'ready', revision: 9, writable: true, value: { enabled: false, appId: 'app', appSecret: '', publicUrl: 'https://public.example/' } }) });
+  assert.ok(JSON.stringify(tree).includes('https://public.example/auth/feishu/callback'));
+  assert.ok(!JSON.stringify(tree).includes('http://192.0.2.10:3080/auth/feishu/callback'));
 });
 
 const installedServer = process.env.DSH_INSTALLED_SETTINGS_SERVER;
@@ -81,9 +88,10 @@ test('installed native secret redaction omits values and mutation preserves unsp
   const start = source.indexOf('function isRecord(');
   const end = source.indexOf('//#endregion', start);
   const redact = runInNewContext(source.slice(start, end) + '\nredactSecrets;');
-  const schema = { type: 'object', dict: { enabled: { type: 'boolean' }, appId: { type: 'string' }, appSecret: { type: 'string', meta: { role: 'secret' } } } };
-  const result = redact(schema, { enabled: true, appId: 'app', appSecret: 'native-raw-secret' });
+  const schema = { type: 'object', dict: { enabled: { type: 'boolean' }, appId: { type: 'string' }, appSecret: { type: 'string', meta: { role: 'secret' } }, publicUrl: { type: 'string' } } };
+  const result = redact(schema, { enabled: true, appId: 'app', appSecret: 'native-raw-secret', publicUrl: 'https://public.example' });
   assert.equal(result.value.appSecret, undefined);
+  assert.equal(result.value.publicUrl, 'https://public.example');
   assert.equal(result.secrets[0].path.join('.'), 'appSecret');
   assert.equal(result.secrets[0].set, true);
   assert.equal(JSON.stringify(result).includes('native-raw-secret'), false);

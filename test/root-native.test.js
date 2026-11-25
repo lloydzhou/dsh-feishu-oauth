@@ -79,7 +79,7 @@ async function fixture(t) {
     },
   }, effect(setup) { disposers.push(setup()); } };
   context.applyFrontend(ctx, { distIndex });
-  mount(ctx, { enabled: true, appId: 'test-app', appSecret: 'test-secret' });
+  mount(ctx, { enabled: true, appId: 'test-app', appSecret: 'test-secret', rootPage: true });
   t.after(async () => { for (const dispose of disposers.reverse()) await dispose(); });
   return { reads, admissions, renderedPeers, peer, boot,
     setMode(value) { mode = value; },

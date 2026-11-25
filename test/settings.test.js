@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mountSettings } from '../src/server/settings.js';
 import { fields, pickSettings, validateSettings, settingsOperations } from '../src/client/settings-form.js';
 
-const valid = { enabled: false, appId: '', appSecret: '' };
+const valid = { enabled: false, appId: '', appSecret: '', publicUrl: '' };
 test('disabled OAuth remains configurable without an application or secret', () => {
   assert.equal(validateSettings(valid), '');
   assert.equal(validateSettings({ ...valid, enabled: true }).includes('填写'), true);
@@ -15,7 +15,7 @@ test('form loads a blank secret and omits it from ordinary saves', () => {
   assert.equal(draft.appSecret, '');
   const ops = settingsOperations({ ...draft, unknown: 'DO-NOT-RETURN' });
   assert.equal(JSON.stringify(ops).includes('DO-NOT-RETURN'), false);
-  assert.deepEqual(ops.map(op => op.path[0]), ['enabled', 'appId']);
+  assert.deepEqual(ops.map(op => op.path[0]), ['enabled', 'appId', 'publicUrl']);
   assert.ok(ops.every(op => op.op === 'set'));
 });
 test('a raw secret is sent only when explicitly entered', () => {
@@ -26,10 +26,11 @@ test('a raw secret is sent only when explicitly entered', () => {
     { op: 'set', path: ['enabled'], value: true },
     { op: 'set', path: ['appId'], value: 'app' },
     { op: 'set', path: ['appSecret'], value: raw },
+    { op: 'set', path: ['publicUrl'], value: '' },
   ]);
 });
 test('form rejects malformed field values without requiring a redacted secret', () => {
-  for (const bad of [{ enabled: 'yes' }, { appId: ' app' }, { appId: null }, { appSecret: ' secret ' }, { appSecret: null }]) assert.ok(validateSettings({ ...valid, ...bad }));
+  for (const bad of [{ enabled: 'yes' }, { appId: ' app' }, { appId: null }, { appSecret: ' secret ' }, { appSecret: null }, { publicUrl: 'https://dsh.example/dsh' }, { publicUrl: 'https://dsh.example?x=1' }, { publicUrl: 'ftp://dsh.example' }]) assert.ok(validateSettings({ ...valid, ...bad }));
   assert.equal(validateSettings({ ...valid, enabled: true, appId: 'app' }), '');
 });
 function fixture(mount) {
@@ -58,6 +59,18 @@ test('committed changes revoke routes immediately and await pending callbacks be
   finish(); await updating;
   assert.deepEqual(order.at(-1), ['start', 2, true, 'app']);
   await f.dispose(); assert.deepEqual(order.slice(-2), [['remove', 2], ['abort', 2]]);
+});
+test('a public URL change revokes pending logins and remounts the new base', async () => {
+  const order = [];
+  const f = fixture((ctx, config) => {
+    order.push(['start', config.publicUrl]);
+    ctx.effect(() => () => order.push(['revoke', config.publicUrl]));
+  });
+  assert.deepEqual(order, [['start', '']]);
+  f.values.publicUrl = 'https://public.example';
+  await f.update();
+  assert.deepEqual(order, [['start', ''], ['revoke', ''], ['start', 'https://public.example']]);
+  await f.dispose();
 });
 test('unrelated volatile updates leave active routes and pending logins unchanged', async () => {
   let starts = 0, stops = 0;

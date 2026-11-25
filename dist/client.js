@@ -41,8 +41,11 @@ var en_default = {
     appSecret: "Feishu App Secret",
     secretPlaceholder: "Leave blank to keep the saved secret",
     secretHint: "Enter the raw App Secret, not an environment variable name. Enter it on first setup; leave it blank to keep the saved value. Native settings reads redact secrets, so this field loads empty and clears after saving. The secret is stored in plaintext in the local profile configuration, not an encrypted vault.",
+    publicUrl: "Public base URL (optional)",
+    publicUrlPlaceholder: "https://dsh.example",
+    publicUrlHint: "Leave blank to use the address currently used to open DSH. When set, Feishu redirects and the native cookie exchange use this exact base. Enter only an http(s) origin; paths, credentials, query strings, and fragments are not supported. This does not add the host to DSH trusted hosts.",
     callback: "Feishu redirect URL (read-only): ",
-    callbackHint: "The callback is derived from the current address. Register this exact URL in Feishu. The backend uses the DSH listener protocol; TLS-terminating reverse proxies are not supported.",
+    callbackHint: "Derived from the public base URL when set, otherwise from the current address. Register this exact URL in Feishu. Login routes stay at the root, so a path prefix is not supported. DSH listener trust and TLS behavior are unchanged.",
     httpWarning: "LAN HTTP is allowed, but HTTP is not encrypted: App Secret, login credentials, and session traffic may be intercepted. Use only on trusted networks; native HTTPS is recommended.",
     saveHint: "Saving revokes pending Feishu logins; existing DSH sessions are unaffected. The native token remains available for recovery.",
     readOnly: "This deployment stores settings read-only.",
@@ -56,6 +59,8 @@ var en_default = {
     invalidEnabled: "The switch value is invalid.",
     invalidAppId: "App ID must be text without leading or trailing whitespace.",
     invalidAppSecret: "App Secret must be text without leading or trailing whitespace.",
+    invalidPublicUrl: "Public base URL must be a valid http(s) address without credentials, query string, or fragment.",
+    publicUrlPath: "Public base URL must be an origin without a path; this plugin serves /auth/feishu/* from the root.",
     missingAppId: "Enter an App ID and ensure an App Secret is saved before enabling login."
   }
 };
@@ -74,8 +79,11 @@ var zh_default = {
     appSecret: "\u98DE\u4E66 App Secret",
     secretPlaceholder: "\u7559\u7A7A\u4FDD\u7559\u5DF2\u4FDD\u5B58\u7684\u5BC6\u94A5",
     secretHint: "\u586B\u5199 App Secret \u539F\u59CB\u503C\uFF0C\u4E0D\u662F\u73AF\u5883\u53D8\u91CF\u540D\u3002\u9996\u6B21\u914D\u7F6E\u8BF7\u586B\u5199\uFF1B\u7559\u7A7A\u4FDD\u7559\u5DF2\u4FDD\u5B58\u7684\u503C\u3002\u539F\u751F\u8BBE\u7F6E\u8BFB\u53D6\u4F1A\u79FB\u9664\u5BC6\u94A5\uFF0C\u5BC6\u7801\u6846\u59CB\u7EC8\u7A7A\u767D\u8F7D\u5165\uFF1B\u4FDD\u5B58\u540E\u4E5F\u4F1A\u6E05\u7A7A\u3002\u5BC6\u94A5\u4EE5\u660E\u6587\u4FDD\u5B58\u5728\u672C\u673A profile \u914D\u7F6E\u4E2D\uFF0C\u4E0D\u662F\u52A0\u5BC6\u4FDD\u9669\u5E93\u3002",
+    publicUrl: "\u516C\u5F00\u8BBF\u95EE\u57FA\u5740\uFF08\u53EF\u9009\uFF09",
+    publicUrlPlaceholder: "https://dsh.example",
+    publicUrlHint: "\u53EF\u7559\u7A7A\uFF0C\u6CBF\u7528\u5F53\u524D\u8BBF\u95EE\u5730\u5740\u3002\u586B\u5199\u540E\uFF0C\u98DE\u4E66\u91CD\u5B9A\u5411\u548C\u539F\u751F Cookie \u6362\u53D6\u5747\u4F7F\u7528\u8BE5\u57FA\u5740\u3002\u53EA\u63A5\u53D7 http(s) \u6839\u5730\u5740\uFF1B\u4E0D\u652F\u6301\u8DEF\u5F84\u3001\u51ED\u636E\u3001\u67E5\u8BE2\u4E32\u6216\u7247\u6BB5\u3002\u6B64\u914D\u7F6E\u4E0D\u4F1A\u628A\u8BE5 Host \u52A0\u5165 DSH \u4FE1\u4EFB\u5217\u8868\u3002",
     callback: "\u98DE\u4E66\u91CD\u5B9A\u5411\u5730\u5740\uFF08\u53EA\u8BFB\uFF09\uFF1A",
-    callbackHint: "\u56DE\u8C03\u7531\u5F53\u524D\u8BBF\u95EE\u5730\u5740\u81EA\u52A8\u751F\u6210\uFF1B\u8BF7\u5728\u98DE\u4E66\u540E\u53F0\u767B\u8BB0\u6B64\u7CBE\u786E\u5730\u5740\u3002\u540E\u7AEF\u4F7F\u7528 DSH \u76D1\u542C\u5668\u534F\u8BAE\uFF0C\u4E0D\u652F\u6301 TLS \u7EC8\u6B62\u53CD\u5411\u4EE3\u7406\u3002",
+    callbackHint: "\u6709\u914D\u7F6E\u65F6\u7531\u516C\u5F00\u8BBF\u95EE\u57FA\u5740\u751F\u6210\uFF0C\u7559\u7A7A\u65F6\u7531\u5F53\u524D\u8BBF\u95EE\u5730\u5740\u751F\u6210\uFF1B\u8BF7\u5728\u98DE\u4E66\u540E\u53F0\u767B\u8BB0\u6B64\u7CBE\u786E\u5730\u5740\u3002\u767B\u5F55\u8DEF\u7531\u56FA\u5B9A\u5728\u6839\u8DEF\u5F84\uFF0C\u4E0D\u652F\u6301\u5B50\u8DEF\u5F84\u90E8\u7F72\u3002DSH \u76D1\u542C\u5668\u4FE1\u4EFB\u4E0E TLS \u884C\u4E3A\u4E0D\u53D8\u3002",
     httpWarning: "\u5141\u8BB8\u5C40\u57DF\u7F51 HTTP\uFF0C\u4F46 HTTP \u4E0D\u52A0\u5BC6\uFF1AApp Secret\u3001\u767B\u5F55\u51ED\u636E\u548C\u4F1A\u8BDD\u6D41\u91CF\u53EF\u80FD\u88AB\u7A83\u542C\u3002\u4EC5\u5728\u53EF\u4FE1\u7F51\u7EDC\u4F7F\u7528\uFF1B\u5EFA\u8BAE\u4F7F\u7528\u539F\u751F HTTPS\u3002",
     saveHint: "\u4FDD\u5B58\u4F1A\u64A4\u9500\u5C1A\u672A\u5B8C\u6210\u7684\u98DE\u4E66\u767B\u5F55\uFF1B\u5DF2\u6709 DSH \u767B\u5F55\u4F1A\u8BDD\u4E0D\u53D7\u5F71\u54CD\u3002\u539F\u751F token \u59CB\u7EC8\u53EF\u7528\u4E8E\u6062\u590D\u3002",
     readOnly: "\u672C\u90E8\u7F72\u7684\u914D\u7F6E\u4E3A\u53EA\u8BFB\u3002",
@@ -89,19 +97,42 @@ var zh_default = {
     invalidEnabled: "\u5F00\u5173\u503C\u65E0\u6548\u3002",
     invalidAppId: "App ID \u5FC5\u987B\u4E3A\u6587\u672C\uFF0C\u4E14\u4E0D\u80FD\u5305\u542B\u9996\u5C3E\u7A7A\u683C\u3002",
     invalidAppSecret: "App Secret \u5FC5\u987B\u4E3A\u6587\u672C\uFF0C\u4E14\u4E0D\u80FD\u5305\u542B\u9996\u5C3E\u7A7A\u683C\u3002",
+    invalidPublicUrl: "\u516C\u5F00\u8BBF\u95EE\u57FA\u5740\u5FC5\u987B\u662F\u6709\u6548\u7684 http(s) \u5730\u5740\uFF0C\u4E14\u4E0D\u80FD\u5305\u542B\u51ED\u636E\u3001\u67E5\u8BE2\u4E32\u6216\u7247\u6BB5\u3002",
+    publicUrlPath: "\u516C\u5F00\u8BBF\u95EE\u57FA\u5740\u4E0D\u80FD\u5305\u542B\u8DEF\u5F84\uFF1B\u63D2\u4EF6\u4EC5\u5728\u6839\u8DEF\u5F84\u63D0\u4F9B /auth/feishu/* \u8DEF\u7531\u3002",
     missingAppId: "\u542F\u7528\u524D\u8BF7\u586B\u5199 App ID\uFF0C\u5E76\u786E\u4FDD\u5DF2\u4FDD\u5B58 App Secret\u3002"
   }
 };
 
 // src/client/settings-form.js
-var fields = ["enabled", "appId", "appSecret"];
+var fields = ["enabled", "appId", "appSecret", "publicUrl"];
 function pickSettings(value) {
-  return { enabled: value.enabled, appId: value.appId, appSecret: "" };
+  return { enabled: value.enabled, appId: value.appId, appSecret: "", publicUrl: value.publicUrl ?? "" };
+}
+function publicUrlError(value) {
+  if (value === "") return "";
+  if (typeof value !== "string" || /[\s\u0000-\u001F\u007F\\?#]/.test(value)) return "invalidPublicUrl";
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return "invalidPublicUrl";
+  }
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) return "invalidPublicUrl";
+  if (url.pathname !== "/" || url.href !== `${url.origin}/`) return "publicUrlPath";
+  return "";
+}
+function publicOrigin(value) {
+  return value && !publicUrlError(value) ? new URL(value).origin : void 0;
+}
+function callbackUrl(value, origin) {
+  return `${publicOrigin(value) ?? origin}/auth/feishu/callback`;
 }
 function validateSettings(value, t = (key) => zh_default.settings[key]) {
   if (typeof value.enabled !== "boolean") return t("invalidEnabled");
   if (typeof value.appId !== "string" || value.appId.trim() !== value.appId) return t("invalidAppId");
   if (typeof value.appSecret !== "string" || value.appSecret.trim() !== value.appSecret) return t("invalidAppSecret");
+  const publicUrl = publicUrlError(value.publicUrl);
+  if (publicUrl) return t(publicUrl);
   if (value.enabled && !value.appId) return t("missingAppId");
   return "";
 }
@@ -171,7 +202,9 @@ function Editor({ t, value, revision, writable, save, reset }) {
     field("appId", "text", { autoComplete: "off" }),
     field("appSecret", "password", { autoComplete: "new-password", spellCheck: false, placeholder: t("secretPlaceholder") }),
     (0, import_react.createElement)("p", { style: hint }, t("secretHint")),
-    (0, import_react.createElement)("p", { style: hint }, t("callback"), (0, import_react.createElement)("code", null, `${window.location.origin}/auth/feishu/callback`)),
+    field("publicUrl", "text", { autoComplete: "off", inputMode: "url", spellCheck: false, placeholder: t("publicUrlPlaceholder") }),
+    (0, import_react.createElement)("p", { style: hint }, t("publicUrlHint")),
+    (0, import_react.createElement)("p", { style: hint }, t("callback"), (0, import_react.createElement)("code", null, callbackUrl(draft.publicUrl, window.location.origin))),
     (0, import_react.createElement)("p", { style: hint }, t("callbackHint")),
     (0, import_react.createElement)("p", { style: hint, role: window.location.protocol === "http:" ? "alert" : void 0 }, t("httpWarning")),
     (0, import_react.createElement)("p", { style: hint }, t("saveHint")),

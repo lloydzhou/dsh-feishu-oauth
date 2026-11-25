@@ -1,29 +1,69 @@
 {
   "name": "dsh-feishu-oauth",
-  "version": "0.2.2-rc.2",
+  "version": "0.2.2-rc.3",
   "description": "Feishu OAuth login for DeepSeek Harness using native session cookies",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/lloydzhou/dsh-feishu-oauth.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lloydzhou/dsh-feishu-oauth.git"
+  },
   "homepage": "https://github.com/lloydzhou/dsh-feishu-oauth#readme",
-  "bugs": { "url": "https://github.com/lloydzhou/dsh-feishu-oauth/issues" },
-  "keywords": ["dsh", "deepseek-harness", "feishu", "oauth", "plugin"],
+  "bugs": {
+    "url": "https://github.com/lloydzhou/dsh-feishu-oauth/issues"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "feishu",
+    "oauth",
+    "plugin"
+  ],
   "type": "module",
   "main": "./src/server/index.js",
-  "exports": { ".": "./src/server/index.js", "./client": "./dist/client.js", "./locale/*.json": "./locale/*.json", "./package.json": "./package.json" },
-  "files": ["src/server", "dist/client.js", "locale", "cordis.patch.yml", "README.md", "LICENSE", "SECURITY.md", "SETTINGS-INTEGRATION.md", "ASSET-ATTRIBUTION.md"],
-  "engines": { "node": ">=24.9.0", "dsh": ">=0.2.1-rc.3" },
+  "exports": {
+    ".": "./src/server/index.js",
+    "./client": "./dist/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/server",
+    "dist/client.js",
+    "locale",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "SETTINGS-INTEGRATION.md",
+    "ASSET-ATTRIBUTION.md"
+  ],
+  "engines": {
+    "node": ">=24.9.0",
+    "dsh": ">=0.2.1-rc.3"
+  },
   "scripts": {
     "test": "node --test test/*.test.js",
     "check": "node --check src/server/index.js && node --check src/server/oauth.js && node --check src/server/oauth-locale.js && node --check src/server/login-page.js && node --check src/server/settings.js && node --check dist/client.js && node --check src/client/index.js && node --check src/client/settings-form.js && node --check scripts/build-client.mjs",
     "build:client": "node scripts/build-client.mjs",
     "prepack": "npm run build:client && npm run check && npm test"
   },
-  "devDependencies": { "esbuild": "0.28.2" },
-  "peerDependencies": { "@deepseek-ai/cordis": "^4.0.5", "@deepseek-ai/schemastery": "^3.18.5" },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/schemastery": "^3.18.5"
+  },
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
-      "inject": ["@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-settings", "@deepseek-ai/dsh-client-ui-plugin-manager"],
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ],
       "platform": "web"
     }
   }
